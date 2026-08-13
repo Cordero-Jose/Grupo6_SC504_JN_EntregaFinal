@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Productos — Lubricentro</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridjs/dist/theme/mermaid.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <h2>Lubricentro</h2>
+  </div>
+  <nav>
+    <div class="section-title">Principal</div>
+    <a href="index.html">Dashboard</a>
+    <div class="section-title">Operaciones</div>
+    <a href="clientes.html">Clientes</a>
+    <a href="vehiculos.html">Vehículos</a>
+    <a href="citas.html">Citas</a>
+    <a href="ordenes.html">Órdenes</a>
+    <a href="servicios.html">Servicios</a>
+    <div class="section-title">Inventario</div>
+    <a href="productos.html">Productos</a>
+    <a href="inventario.html">Inventario</a>
+    <div class="section-title">Finanzas</div>
+    <a href="facturas.html">Facturas</a>
+    <a href="pagos.html">Pagos</a>
+    <div class="section-title">Sistema</div>
+    <a href="usuarios.html">Usuarios</a>
+    <a href="auditoria.html">Auditoría</a>
+  </nav>
+</aside>
+<div class="main">
+  <div class="topbar">
+    <div><h1>Productos</h1><div class="subtitle">Catálogo e inventario de productos</div></div>
+    <button class="btn btn-primary" onclick="nuevoProducto()">+ Nuevo Producto</button>
+  </div>
+  <div class="content">
+    <div class="stats-grid" id="statsProductos"></div>
+    <div class="charts-grid" style="margin-bottom:20px">
+      <div class="chart-panel" style="grid-column:1/-1">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <h3 style="margin:0">Stock actual vs mínimo por producto</h3>
+          <span style="font-size:11px;color:#9ca3af">← Desliza para ver más →</span>
+        </div>
+        <div style="overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;cursor:grab">
+          <div id="chartStockWrap" style="position:relative;height:200px;min-width:600px">
+            <canvas id="chartStock"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><h3>Lista de Productos</h3></div>
+      <div class="panel-body" id="grid-productos"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalProd">
+  <div class="modal">
+    <div class="modal-header"><h3>Nuevo Producto</h3><button class="modal-close" onclick="closeModal('modalProd')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group" style="display:none"><label>ID Producto *</label><input id="pId"></div>
+        <div class="form-group">
+          <label>Categoría *</label>
+          <select id="pCat"><option value="">— seleccione —</option></select>
+          <span class="form-hint">Seleccione la categoría del producto.</span>
+        </div>
+        <div class="form-group form-full">
+          <label>Nombre del Producto *</label><input id="pNombre" placeholder="Ej: Aceite 10W-30 1L">
+          <span class="form-hint">Nombre completo incluyendo tipo y medida.</span>
+        </div>
+        <div class="form-group">
+          <label>Marca</label><input id="pMarca" placeholder="Castrol, Mobil, Shell...">
+          <span class="form-hint">Marca comercial del producto (opcional).</span>
+        </div>
+        <div class="form-group">
+          <label>Precio Unitario (₡) *</label><input id="pPrecio" type="number" min="0" step="0.01" placeholder="0.00">
+          <span class="form-hint">Precio de venta unitario sin IVA.</span>
+        </div>
+        <div class="form-group">
+          <label>Stock Mínimo</label><input id="pStock" type="number" min="0" value="0">
+          <span class="form-hint">Cantidad mínima. Una alerta se activa si baja de este valor.</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalProd')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarProducto()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal editar producto -->
+<div class="modal-overlay" id="modalEditProd">
+  <div class="modal">
+    <div class="modal-header"><h3>Editar producto</h3><button class="modal-close" onclick="closeModal('modalEditProd')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group" style="display:none"><input id="epId"></div>
+        <div class="form-group">
+          <label>Categoría *</label><select id="epCat"></select>
+        </div>
+        <div class="form-group form-full">
+          <label>Nombre *</label><input id="epNombre">
+        </div>
+        <div class="form-group">
+          <label>Marca</label><input id="epMarca">
+        </div>
+        <div class="form-group">
+          <label>Precio Unitario (₡) *</label><input id="epPrecio" type="number" min="0" step="0.01">
+        </div>
+        <div class="form-group">
+          <label>Stock Mínimo</label><input id="epStock" type="number" min="0">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalEditProd')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEditProd()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/gridjs/dist/gridjs.umd.js"></script>
+<script src="app.js"></script>
+<script>
+let precioId = null;
+let _gridProd = null;
+
+async function nuevoProducto() {
+  document.getElementById('pId').value = await nextId('/api/productos', 'P');
+  openModal('modalProd');
+}
+
+let _chartStock = null;
+async function loadProductos() {
+  const rows = await apiFetch('/api/productos');
+
+  // Grid.js
+  const data = rows.map(r => {
+    const alertaHtml = r.EXISTENCIA_ACTUAL <= r.STOCK_MINIMO
+      ? `<span style="color:#dc2626;font-weight:700">${r.EXISTENCIA_ACTUAL} ⚠</span>`
+      : String(r.EXISTENCIA_ACTUAL);
+    return [r.ID_PRODUCTO, r.NOMBRE_PRODUCTO, r.NOMBRE_CATEGORIA, r.MARCA_PRODUCTO||'—',
+            fmtCRC(r.PRECIO_UNITARIO), alertaHtml, r.STOCK_MINIMO,
+            r.ID_PRODUCTO+'|'+r.PRECIO_UNITARIO];
+  });
+  if (_gridProd) { _gridProd.updateConfig({ data }).forceRender(); }
+  else {
+    _gridProd = new gridjs.Grid({
+      columns: [
+        {name:'ID'}, {name:'Nombre'}, {name:'Categoría'}, {name:'Marca'},
+        {name:'Precio'},
+        { name:'Existencia', formatter: cell => gridjs.html(cell) },
+        {name:'Mínimo'},
+        { name:'Acciones', sort:false, formatter: cell => {
+          const [id] = cell.split('|');
+          return gridjs.html(`<div class="flex-gap">
+            <button class="btn btn-info btn-sm"   onclick="abrirEditProd('${id}')">Editar</button>
+            <button class="btn btn-danger btn-sm" onclick="delProducto('${id}')">Eliminar</button>
+          </div>`);
+        }}
+      ],
+      data, search:true, sort:true, pagination:{limit:15},
+      language:{search:{placeholder:'Buscar producto...'},pagination:{previous:'‹',next:'›',navigate:(p,pp)=>`Pág ${p} de ${pp}`,page:p=>`Pág ${p}`,showing:'Mostrando',of:'de',to:'a',results:'resultados'},loading:'Cargando...',noRecordsFound:'Sin resultados',error:'Error'}
+    }).render(document.getElementById('grid-productos'));
+  }
+
+  // ── Stat cards ──────────────────────────────────────────────
+  const total      = rows.length;
+  const bajoStock  = rows.filter(r => r.EXISTENCIA_ACTUAL <= r.STOCK_MINIMO).length;
+  const sinStock   = rows.filter(r => r.EXISTENCIA_ACTUAL === 0).length;
+  const valorTotal = rows.reduce((s, r) => s + (r.EXISTENCIA_ACTUAL * r.PRECIO_UNITARIO), 0);
+  document.getElementById('statsProductos').innerHTML = `
+    <div class="stat-card"><div class="value">${total}</div><div class="label">Total productos</div></div>
+    <div class="stat-card danger"><div class="value">${bajoStock}</div><div class="label">Bajo stock mínimo</div></div>
+    <div class="stat-card danger"><div class="value">${sinStock}</div><div class="label">Sin existencia</div></div>
+    <div class="stat-card accent"><div class="value">${fmtCRC(valorTotal)}</div><div class="label">Valor en inventario</div></div>
+  `;
+
+  // ── Stock chart — scrollable, scales width with product count ─
+  const labels  = rows.map(r => r.NOMBRE_PRODUCTO.length > 14 ? r.NOMBRE_PRODUCTO.slice(0,14)+'…' : r.NOMBRE_PRODUCTO);
+  const actual  = rows.map(r => r.EXISTENCIA_ACTUAL);
+  const minimo  = rows.map(r => r.STOCK_MINIMO);
+  // Make chart wide enough: 70px per product, minimum 600px
+  const chartW = Math.max(600, rows.length * 70);
+  document.getElementById('chartStockWrap').style.width = chartW + 'px';
+  if (_chartStock) _chartStock.destroy();
+  _chartStock = new Chart(document.getElementById('chartStock'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Existencia actual', data: actual, backgroundColor: '#f97316', borderRadius: 4, borderSkipped: false },
+        { label: 'Stock mínimo',      data: minimo, backgroundColor: '#e5e7eb', borderRadius: 4, borderSkipped: false }
+      ]
+    },
+    options: {
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 12 }, boxWidth: 12 } } },
+      scales: {
+        x: { ticks: { font: { family: 'Inter', size: 11 } }, grid: { display: false } },
+        y: { ticks: { font: { family: 'Inter', size: 11 } }, grid: { color: '#f0f2f5' } }
+      }
+    }
+  });
+}
+
+async function loadCategorias() {
+  const rows = await apiFetch('/api/productos/catalogos/categorias');
+  const sel = document.getElementById('pCat');
+  rows.forEach(r => sel.innerHTML += `<option value="${r.ID_CATEGORIA}">${r.NOMBRE_CATEGORIA}</option>`);
+}
+
+async function guardarProducto() {
+  const body = {
+    id_producto: document.getElementById('pId').value.trim(),
+    id_categoria: document.getElementById('pCat').value,
+    nombre_producto: document.getElementById('pNombre').value.trim(),
+    marca_producto: document.getElementById('pMarca').value.trim(),
+    precio_unitario: document.getElementById('pPrecio').value,
+    stock_minimo: document.getElementById('pStock').value
+  };
+  try {
+    await apiFetch('/api/productos', { method:'POST', body: JSON.stringify(body) });
+    toast('Producto creado','success'); closeModal('modalProd'); loadProductos();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function abrirEditProd(id) {
+  const r = await apiFetch('/api/productos/' + id);
+  document.getElementById('epId').value     = id;
+  document.getElementById('epNombre').value = r.NOMBRE_PRODUCTO;
+  document.getElementById('epMarca').value  = r.MARCA_PRODUCTO || '';
+  document.getElementById('epPrecio').value = r.PRECIO_UNITARIO;
+  document.getElementById('epStock').value  = r.STOCK_MINIMO;
+  // populate categorias
+  const cats = await apiFetch('/api/productos/catalogos/categorias');
+  document.getElementById('epCat').innerHTML = cats.map(c => `<option value="${c.ID_CATEGORIA}">${c.NOMBRE_CATEGORIA}</option>`).join('');
+  document.getElementById('epCat').value = r.ID_CATEGORIA;
+  openModal('modalEditProd');
+}
+
+async function guardarEditProd() {
+  const id = document.getElementById('epId').value;
+  const body = {
+    id_categoria:    document.getElementById('epCat').value,
+    nombre_producto: document.getElementById('epNombre').value.trim(),
+    marca_producto:  document.getElementById('epMarca').value.trim(),
+    precio_unitario: document.getElementById('epPrecio').value,
+    stock_minimo:    document.getElementById('epStock').value
+  };
+  try {
+    await apiFetch('/api/productos/' + id, { method:'PUT', body: JSON.stringify(body) });
+    toast('Producto actualizado', 'success'); closeModal('modalEditProd'); loadProductos();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function delProducto(id) {
+  confirmDialog({
+    title: 'Eliminar producto',
+    message: `¿Estás seguro de que deseas eliminar el producto ${id}? Se perderán todos sus datos.`,
+    confirmText: 'Eliminar',
+    danger: true,
+    onConfirm: async () => {
+      try { await apiFetch('/api/productos/'+id,{method:'DELETE'}); toast('Producto eliminado','success'); loadProductos(); }
+      catch(e) { toast(e.message,'error'); }
+    }
+  });
+}
+
+loadCategorias();
+loadProductos();
+</script>
+</body>
+</html>

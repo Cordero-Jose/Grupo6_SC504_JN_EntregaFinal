@@ -1,0 +1,17 @@
+﻿# ── Dependencies ──────────────────────────────────────────────
+node_modules/
+
+# ── Environment / secrets ─────────────────────────────────────
+.env
+.env.*
+
+# ── Oracle Wallet (certificates & credentials) ────────────────
+wallet/
+
+# ── Database dumps ────────────────────────────────────────────
+*.sql
+
+# ── OS / editor noise ─────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/

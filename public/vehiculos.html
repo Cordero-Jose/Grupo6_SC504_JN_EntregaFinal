@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lubricentro – Vehículos</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridjs/dist/theme/mermaid.min.css">
+</head>
+<body>
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <h2>Lubricentro</h2>
+  </div>
+  <nav>
+    <div class="section-title">Principal</div>
+    <a href="index.html">Dashboard</a>
+    <div class="section-title">Operaciones</div>
+    <a href="clientes.html">Clientes</a>
+    <a href="vehiculos.html">Vehículos</a>
+    <a href="citas.html">Citas</a>
+    <a href="ordenes.html">Órdenes</a>
+    <div class="section-title">Inventario</div>
+    <a href="productos.html">Productos</a>
+    <a href="inventario.html">Inventario</a>
+    <a href="servicios.html">Servicios</a>
+    <div class="section-title">Finanzas</div>
+    <a href="facturas.html">Facturas</a>
+    <a href="pagos.html">Pagos</a>
+    <div class="section-title">Sistema</div>
+    <a href="usuarios.html">Usuarios</a>
+    <a href="auditoria.html">Auditoría</a>
+  </nav>
+</aside>
+<div class="main">
+  <div class="topbar">
+    <div><h1>Vehículos</h1><div class="subtitle">Vehículos registrados por cliente</div></div>
+    <button class="btn btn-primary" onclick="nuevoVehiculo()">+ Nuevo vehículo</button>
+  </div>
+  <div class="content">
+    <div class="panel">
+      <div class="panel-header"><h3>Lista de vehículos</h3></div>
+      <div class="panel-body" id="grid-vehiculos"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-v">
+  <div class="modal">
+    <div class="modal-header"><h3>Nuevo vehículo</h3><button class="modal-close" onclick="closeModal('modal-v')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group" style="display:none"><label>ID Vehículo</label><input id="f-id"></div>
+        <div class="form-group">
+          <label>Cliente *</label><select id="f-cliente"></select>
+          <span class="form-hint">Seleccione el propietario del vehículo.</span>
+        </div>
+        <div class="form-group">
+          <label>Marca *</label>
+          <div class="input-with-btn">
+            <select id="f-marca" onchange="loadModelos()"></select>
+            <button type="button" class="btn btn-outline btn-sm" onclick="abrirNuevaMarca()">＋ Marca</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Modelo *</label>
+          <div class="input-with-btn">
+            <select id="f-modelo"></select>
+            <button type="button" class="btn btn-outline btn-sm" onclick="abrirNuevoModelo()">＋ Modelo</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Placa *</label><input id="f-placa" placeholder="ABC123">
+          <span class="form-hint">Formato costarricense: 3 letras + 3 números. Ej: ABC123</span>
+        </div>
+        <div class="form-group">
+          <label>Kilometraje</label><input id="f-km" type="number" min="0" value="0">
+          <span class="form-hint">Kilometraje actual del vehículo (solo números).</span>
+        </div>
+        <div class="form-group">
+          <label>Color</label><input id="f-color" placeholder="Ej: Rojo, Blanco...">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-v')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardar()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal editar vehículo -->
+<div class="modal-overlay" id="modal-edit-v">
+  <div class="modal">
+    <div class="modal-header"><h3>Editar vehículo</h3><button class="modal-close" onclick="closeModal('modal-edit-v')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group" style="display:none"><input id="fe-id"></div>
+        <div class="form-group">
+          <label>Cliente *</label><select id="fe-cliente"></select>
+        </div>
+        <div class="form-group">
+          <label>Marca *</label><select id="fe-marca" onchange="loadModelosEdit()"></select>
+        </div>
+        <div class="form-group">
+          <label>Modelo *</label><select id="fe-modelo"></select>
+        </div>
+        <div class="form-group">
+          <label>Placa *</label><input id="fe-placa" placeholder="ABC123">
+        </div>
+        <div class="form-group">
+          <label>Kilometraje</label><input id="fe-km" type="number" min="0">
+        </div>
+        <div class="form-group">
+          <label>Color</label><input id="fe-color" placeholder="Rojo, Blanco...">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-edit-v')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEditV()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal nueva marca -->
+<div class="modal-overlay" id="modal-marca">
+  <div class="modal" style="max-width:360px">
+    <div class="modal-header"><h3>Nueva marca</h3><button class="modal-close" onclick="closeModal('modal-marca')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group form-full">
+          <label>Nombre de la marca *</label>
+          <input id="nm-nombre" placeholder="Ej: Mazda, Subaru...">
+          <span class="form-hint">Ingrese el nombre de la nueva marca de vehículo.</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-marca')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarMarca()">Guardar marca</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal nuevo modelo -->
+<div class="modal-overlay" id="modal-modelo">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header"><h3>Nuevo modelo</h3><button class="modal-close" onclick="closeModal('modal-modelo')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group form-full">
+          <label>Marca *</label>
+          <select id="nm-marca"></select>
+          <span class="form-hint">Seleccione la marca a la que pertenece el modelo.</span>
+        </div>
+        <div class="form-group">
+          <label>Nombre del modelo *</label>
+          <input id="nm-nombre-modelo" placeholder="Ej: Corolla, Civic...">
+        </div>
+        <div class="form-group">
+          <label>Año *</label>
+          <input id="nm-anio" type="number" min="1900" max="2100" placeholder="Ej: 2024">
+          <span class="form-hint">Año de fabricación del modelo (1900–2100).</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-modelo')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarModelo()">Guardar modelo</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/gridjs/dist/gridjs.umd.js"></script>
+<script src="app.js"></script>
+<script>
+let kmEditId = null;
+let _grid = null;
+let _vehCache = [];
+
+async function nuevoVehiculo() {
+  document.getElementById('f-id').value = await nextId('/api/vehiculos', 'V', 3, 'ID_VEHICULO');
+  openModal('modal-v');
+}
+
+async function load() {
+  _vehCache = await apiFetch('/api/vehiculos');
+  const data = _vehCache.map(r => [
+    r.ID_VEHICULO, r.CLIENTE, r.PLACA, r.MARCA, r.MODELO,
+    r.ANIO||'', r.KILOMETRAJE.toLocaleString(), r.COLOR||'',
+    r.ID_VEHICULO+'|'+r.KILOMETRAJE
+  ]);
+  if (_grid) { _grid.updateConfig({ data }).forceRender(); return; }
+  _grid = new gridjs.Grid({
+    columns: [
+      {name:'ID'}, {name:'Cliente'}, {name:'Placa'}, {name:'Marca'},
+      {name:'Modelo'}, {name:'Año'}, {name:'Km'}, {name:'Color'},
+      { name:'Acciones', sort:false, formatter: cell => {
+        const [id] = cell.split('|');
+        return gridjs.html(`<div class="flex-gap">
+          <button class="btn btn-info btn-sm"   onclick="editarVehiculo('${id}')">Editar</button>
+          <button class="btn btn-danger btn-sm" onclick="eliminar('${id}')">Eliminar</button>
+        </div>`);
+      }}
+    ],
+    data, search:true, sort:true, pagination:{limit:15},
+    language:{search:{placeholder:'Buscar vehículo...'},pagination:{previous:'‹',next:'›',navigate:(p,pp)=>`Pág ${p} de ${pp}`,page:p=>`Pág ${p}`,showing:'Mostrando',of:'de',to:'a',results:'resultados'},loading:'Cargando...',noRecordsFound:'Sin resultados',error:'Error'}
+  }).render(document.getElementById('grid-vehiculos'));
+}
+
+async function loadCatalogos() {
+  const [clientes, marcas] = await Promise.all([apiFetch('/api/clientes'), apiFetch('/api/vehiculos/catalogos/marcas')]);
+  document.getElementById('f-cliente').innerHTML = clientes.map(c=>`<option value="${c.ID_CLIENTE}">${c.NOMBRE}</option>`).join('');
+  document.getElementById('f-marca').innerHTML = marcas.map(m=>`<option value="${m.ID_MARCA}">${m.NOMBRE_MARCA}</option>`).join('');
+  loadModelos();
+}
+
+async function loadModelos() {
+  const id = document.getElementById('f-marca').value;
+  const modelos = await apiFetch(`/api/vehiculos/catalogos/modelos/${id}`);
+  document.getElementById('f-modelo').innerHTML = modelos.map(m=>`<option value="${m.ID_MODELO}">${m.NOMBRE_MODELO} (${m.ANIO})</option>`).join('');
+}
+
+async function guardar() {
+  const body = { id_vehiculo: document.getElementById('f-id').value, id_cliente: document.getElementById('f-cliente').value, id_modelo: document.getElementById('f-modelo').value, placa: document.getElementById('f-placa').value, kilometraje: document.getElementById('f-km').value, color: document.getElementById('f-color').value };
+  try { await apiFetch('/api/vehiculos', { method:'POST', body:JSON.stringify(body) }); toast('Vehículo creado','success'); closeModal('modal-v'); load(); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+async function editarVehiculo(id) {
+  const r = _vehCache.find(x => x.ID_VEHICULO === id);
+  if (!r) return;
+  document.getElementById('fe-id').value    = id;
+  document.getElementById('fe-placa').value = r.PLACA  || '';
+  document.getElementById('fe-km').value    = r.KILOMETRAJE || 0;
+  document.getElementById('fe-color').value = r.COLOR  || '';
+  // populate client select and pick current
+  const clientes = await apiFetch('/api/clientes');
+  document.getElementById('fe-cliente').innerHTML = clientes.map(c => `<option value="${c.ID_CLIENTE}">${c.NOMBRE}</option>`).join('');
+  document.getElementById('fe-cliente').value = r.ID_CLIENTE;
+  // populate marca select
+  const marcas = await apiFetch('/api/vehiculos/catalogos/marcas');
+  document.getElementById('fe-marca').innerHTML = marcas.map(m => `<option value="${m.ID_MARCA}">${m.NOMBRE_MARCA}</option>`).join('');
+  // find the marca for the current model
+  const allModelos = await apiFetch('/api/vehiculos/catalogos/modelos');
+  const curModelo  = allModelos.find(m => m.ID_MODELO === r.ID_MODELO) ||
+                     allModelos.find(m => m.NOMBRE_MODELO === r.MODELO);
+  if (curModelo) {
+    document.getElementById('fe-marca').value = curModelo.ID_MARCA;
+    await loadModelosEdit();
+    document.getElementById('fe-modelo').value = curModelo.ID_MODELO;
+  } else {
+    await loadModelosEdit();
+  }
+  openModal('modal-edit-v');
+}
+
+async function loadModelosEdit() {
+  const id = document.getElementById('fe-marca').value;
+  const modelos = await apiFetch(`/api/vehiculos/catalogos/modelos/${id}`);
+  document.getElementById('fe-modelo').innerHTML = modelos.map(m => `<option value="${m.ID_MODELO}">${m.NOMBRE_MODELO} (${m.ANIO})</option>`).join('');
+}
+
+async function guardarEditV() {
+  const id = document.getElementById('fe-id').value;
+  const body = {
+    id_cliente: document.getElementById('fe-cliente').value,
+    id_modelo:  document.getElementById('fe-modelo').value,
+    placa:      document.getElementById('fe-placa').value,
+    kilometraje: document.getElementById('fe-km').value,
+    color:      document.getElementById('fe-color').value
+  };
+  try {
+    await apiFetch(`/api/vehiculos/${id}`, { method:'PUT', body: JSON.stringify(body) });
+    toast('Vehículo actualizado', 'success');
+    closeModal('modal-edit-v');
+    load();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function eliminar(id) {
+  confirmDialog({
+    title: 'Eliminar vehículo',
+    message: `¿Estás seguro de que deseas eliminar el vehículo ${id}?`,
+    confirmText: 'Eliminar',
+    danger: true,
+    onConfirm: async () => {
+      try { await apiFetch(`/api/vehiculos/${id}`, { method:'DELETE' }); toast('Vehículo eliminado','success'); load(); }
+      catch(e) { toast(e.message,'error'); }
+    }
+  });
+}
+
+// ── Nueva marca ───────────────────────────────────────────────
+function abrirNuevaMarca() {
+  document.getElementById('nm-nombre').value = '';
+  openModal('modal-marca');
+}
+
+async function guardarMarca() {
+  const nombre = document.getElementById('nm-nombre').value.trim();
+  if (!nombre) { toast('Ingrese el nombre de la marca', 'warning'); return; }
+  const marcas = await apiFetch('/api/vehiculos/catalogos/marcas');
+  const nums   = marcas.map(m => parseInt(m.ID_MARCA.replace(/\D/g,''), 10) || 0);
+  const nextN  = Math.max(0, ...nums) + 1;
+  const id     = 'MAR' + String(nextN).padStart(3, '0');
+  try {
+    await apiFetch('/api/vehiculos/catalogos/marcas', { method:'POST', body: JSON.stringify({ id_marca: id, nombre_marca: nombre }) });
+    toast(`Marca "${nombre}" creada`, 'success');
+    closeModal('modal-marca');
+    await loadCatalogos();
+    document.getElementById('f-marca').value = id;
+    await loadModelos();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── Nuevo modelo ──────────────────────────────────────────────
+async function abrirNuevoModelo() {
+  const marcas = await apiFetch('/api/vehiculos/catalogos/marcas');
+  document.getElementById('nm-marca').innerHTML = marcas.map(m =>
+    `<option value="${m.ID_MARCA}">${m.NOMBRE_MARCA}</option>`
+  ).join('');
+  const marcaActual = document.getElementById('f-marca').value;
+  if (marcaActual) document.getElementById('nm-marca').value = marcaActual;
+  document.getElementById('nm-nombre-modelo').value = '';
+  document.getElementById('nm-anio').value = new Date().getFullYear();
+  openModal('modal-modelo');
+}
+
+async function guardarModelo() {
+  const idMarca = document.getElementById('nm-marca').value;
+  const nombre  = document.getElementById('nm-nombre-modelo').value.trim();
+  const anio    = document.getElementById('nm-anio').value;
+  if (!nombre) { toast('Ingrese el nombre del modelo', 'warning'); return; }
+  if (!anio)   { toast('Ingrese el año del modelo', 'warning'); return; }
+  const modelos = await apiFetch('/api/vehiculos/catalogos/modelos');
+  const nums    = modelos.map(m => parseInt(m.ID_MODELO.replace(/\D/g,''), 10) || 0);
+  const nextN   = Math.max(0, ...nums) + 1;
+  const id      = 'MOD' + String(nextN).padStart(3, '0');
+  try {
+    await apiFetch('/api/vehiculos/catalogos/modelos', { method:'POST', body: JSON.stringify({ id_modelo: id, id_marca: idMarca, nombre_modelo: nombre, anio }) });
+    toast(`Modelo "${nombre} (${anio})" creado`, 'success');
+    closeModal('modal-modelo');
+    document.getElementById('f-marca').value = idMarca;
+    await loadModelos();
+    document.getElementById('f-modelo').value = id;
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+loadCatalogos(); load();
+</script>
+</body></html>

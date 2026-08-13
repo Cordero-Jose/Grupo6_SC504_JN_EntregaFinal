@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lubricentro – Citas</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridjs/dist/theme/mermaid.min.css">
+</head>
+<body>
+<aside class="sidebar">
+  <div class="sidebar-logo"><h2>Lubricentro</h2></div>
+  <nav>
+    <div class="section-title">Principal</div>
+    <a href="index.html">Dashboard</a>
+    <div class="section-title">Operaciones</div>
+    <a href="clientes.html">Clientes</a>
+    <a href="vehiculos.html">Vehículos</a>
+    <a href="citas.html">Citas</a>
+    <a href="ordenes.html">Órdenes</a>
+    <a href="servicios.html">Servicios</a>
+    <div class="section-title">Inventario</div>
+    <a href="productos.html">Productos</a>
+    <a href="inventario.html">Inventario</a>
+    <div class="section-title">Finanzas</div>
+    <a href="facturas.html">Facturas</a>
+    <a href="pagos.html">Pagos</a>
+    <div class="section-title">Sistema</div>
+    <a href="usuarios.html">Usuarios</a>
+    <a href="auditoria.html">Auditoría</a>
+  </nav>
+</aside>
+<div class="main">
+  <div class="topbar">
+    <div><h1>Citas</h1><div class="subtitle">Agenda de citas de servicio</div></div>
+    <button class="btn btn-primary" onclick="nuevaCita()">+ Nueva cita</button>
+  </div>
+  <div class="content">
+
+    <!-- ── Kanban Board ── -->
+    <div class="kanban-wrap">
+      <h3>Tablero Kanban — arrastra las citas para cambiar su estado</h3>
+      <div class="kanban-board" id="kanban">
+        <div class="kanban-col" data-estado="PENDIENTE">
+          <div class="kanban-col-header">
+            <span class="kanban-col-title">Pendiente</span>
+            <span class="kanban-col-count" id="kc-PENDIENTE">0</span>
+          </div>
+        </div>
+        <div class="kanban-col" data-estado="CONFIRMADA">
+          <div class="kanban-col-header">
+            <span class="kanban-col-title">Confirmada</span>
+            <span class="kanban-col-count" id="kc-CONFIRMADA">0</span>
+          </div>
+        </div>
+        <div class="kanban-col" data-estado="ATENDIDA">
+          <div class="kanban-col-header">
+            <span class="kanban-col-title">Atendida</span>
+            <span class="kanban-col-count" id="kc-ATENDIDA">0</span>
+          </div>
+        </div>
+        <div class="kanban-col" data-estado="CANCELADA">
+          <div class="kanban-col-header">
+            <span class="kanban-col-title">Cancelada</span>
+            <span class="kanban-col-count" id="kc-CANCELADA">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Grid.js table ── -->
+    <div class="panel">
+      <div class="panel-header"><h3>Citas registradas</h3></div>
+      <div class="panel-body" id="grid-citas"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal nueva cita -->
+<div class="modal-overlay" id="modal-cita">
+  <div class="modal">
+    <div class="modal-header"><h3>Nueva cita</h3><button class="modal-close" onclick="closeModal('modal-cita')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group" style="display:none"><label>ID Cita</label><input id="f-id"></div>
+        <div class="form-group">
+          <label>Cliente *</label><select id="f-cliente" onchange="loadVehiculos()"></select>
+          <span class="form-hint">Seleccione el cliente que agenda la cita.</span>
+        </div>
+        <div class="form-group">
+          <label>Vehículo *</label><select id="f-vehiculo"></select>
+          <span class="form-hint">Solo se muestran vehículos del cliente seleccionado.</span>
+        </div>
+        <div class="form-group">
+          <label>Fecha y hora *</label><input id="f-fecha" type="datetime-local">
+          <span class="form-hint">Fecha y hora en que se atenderá al cliente.</span>
+        </div>
+        <div class="form-group">
+          <label>Estado</label>
+          <select id="f-estado"><option>PENDIENTE</option><option>CONFIRMADA</option><option>ATENDIDA</option><option>CANCELADA</option></select>
+          <span class="form-hint">Estado inicial recomendado: PENDIENTE.</span>
+        </div>
+        <div class="form-group form-full">
+          <label>Observación</label><input id="f-obs" placeholder="Motivo de la visita, solicitudes especiales...">
+          <span class="form-hint">Opcional. Descripción del servicio solicitado.</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-cita')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardar()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal editar cita -->
+<div class="modal-overlay" id="modal-edit-cita">
+  <div class="modal">
+    <div class="modal-header"><h3>Editar cita</h3><button class="modal-close" onclick="closeModal('modal-edit-cita')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Fecha y hora</label><input id="fe-fecha" type="datetime-local">
+          <span class="form-hint">Nueva fecha y hora de la cita.</span>
+        </div>
+        <div class="form-group">
+          <label>Estado</label>
+          <select id="fe-estado"><option>PENDIENTE</option><option>CONFIRMADA</option><option>ATENDIDA</option><option>CANCELADA</option></select>
+        </div>
+        <div class="form-group form-full">
+          <label>Observación</label><input id="fe-obs" placeholder="Motivo, solicitudes especiales...">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-edit-cita')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEditCita()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal cambiar estado (kept for kanban drag) -->
+<div class="modal-overlay" id="modal-estado">
+  <div class="modal" style="max-width:340px">
+    <div class="modal-header"><h3>Cambiar estado</h3><button class="modal-close" onclick="closeModal('modal-estado')">×</button></div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Nuevo estado</label>
+        <select id="f-estado2"><option>PENDIENTE</option><option>CONFIRMADA</option><option>ATENDIDA</option><option>CANCELADA</option></select>
+        <span class="form-hint">Seleccione el nuevo estado de la cita.</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-estado')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEstado()">Actualizar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/gridjs/dist/gridjs.umd.js"></script>
+<script src="app.js"></script>
+<script>
+let stateEditId = null;
+let vehiculosData = [];
+let _allCitas = [];
+let _grid = null;
+
+// ── Kanban ────────────────────────────────────────────────────────────────
+function buildKanban(rows) {
+  const cols = document.querySelectorAll('.kanban-col');
+  // Clear old cards (keep headers)
+  cols.forEach(col => {
+    Array.from(col.children).forEach(ch => {
+      if (!ch.classList.contains('kanban-col-header')) ch.remove();
+    });
+  });
+  // Group by estado
+  ['PENDIENTE','CONFIRMADA','ATENDIDA','CANCELADA'].forEach(est => {
+    const col   = document.querySelector(`.kanban-col[data-estado="${est}"]`);
+    const cards = rows.filter(r => r.ESTADO_CITA === est);
+    document.getElementById('kc-'+est).textContent = cards.length;
+    cards.forEach(r => {
+      const card = document.createElement('div');
+      card.className  = 'kanban-card';
+      card.draggable  = true;
+      card.dataset.id = r.ID_CITA;
+      card.innerHTML  = `
+        <div class="kanban-card-id">${r.ID_CITA}</div>
+        <div class="kanban-card-name">${r.CLIENTE}</div>
+        <div class="kanban-card-sub">${r.PLACA} · ${(r.FECHA_HORA||'').slice(0,10)}</div>`;
+      card.addEventListener('dragstart', onDragStart);
+      card.addEventListener('dragend',   onDragEnd);
+      col.appendChild(card);
+    });
+  });
+  // Drop zones
+  cols.forEach(col => {
+    col.addEventListener('dragover',  onDragOver);
+    col.addEventListener('dragleave', onDragLeave);
+    col.addEventListener('drop',      onDrop);
+  });
+}
+
+let _draggingId = null;
+function onDragStart(e) { _draggingId = e.currentTarget.dataset.id; e.currentTarget.classList.add('dragging'); }
+function onDragEnd(e)   { e.currentTarget.classList.remove('dragging'); }
+function onDragOver(e)  { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+function onDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+
+async function onDrop(e) {
+  e.preventDefault();
+  const col      = e.currentTarget;
+  col.classList.remove('drag-over');
+  const nuevoEst = col.dataset.estado;
+  const old      = _allCitas.find(r => r.ID_CITA === _draggingId);
+  if (!old || old.ESTADO_CITA === nuevoEst) return;
+  try {
+    await apiFetch(`/api/citas/${_draggingId}`, { method:'PUT', body: JSON.stringify({ estado: nuevoEst }) });
+    toast(`Cita ${_draggingId} → ${nuevoEst}`, 'success');
+    await load();
+  } catch(err) { toast(err.message, 'error'); }
+}
+
+// ── Grid.js table ─────────────────────────────────────────────────────────
+function buildGrid(rows) {
+  const data = rows.map(r => [
+    r.ID_CITA,
+    r.CLIENTE,
+    r.PLACA,
+    r.FECHA_HORA,
+    r.ESTADO_CITA,
+    r.OBSERVACION || '—',
+    r.ID_ORDEN    || '—',
+    r.ID_CITA   // actions key
+  ]);
+
+  if (_grid) { _grid.updateConfig({ data }).forceRender(); return; }
+
+  _grid = new gridjs.Grid({
+    columns: [
+      { id: 'id',    name: 'ID' },
+      { id: 'cli',   name: 'Cliente' },
+      { id: 'placa', name: 'Placa' },
+      { id: 'fecha', name: 'Fecha / Hora' },
+      { id: 'est',   name: 'Estado',
+        formatter: (cell) => gridjs.html(badgeEstado(cell)) },
+      { id: 'obs',   name: 'Observación' },
+      { id: 'orden', name: 'Orden' },
+      { id: 'act',   name: 'Acciones', sort: false,
+        formatter: (cell) => gridjs.html(
+          `<div class="flex-gap">
+            <button class="btn btn-info btn-sm"    onclick="editarCita('${cell}')">Editar</button>
+            <button class="btn btn-warning btn-sm" onclick="editEstado('${cell}')">Estado</button>
+            <button class="btn btn-danger btn-sm"  onclick="eliminar('${cell}')">Eliminar</button>
+          </div>`) }
+    ],
+    data,
+    search: true,
+    sort:   true,
+    pagination: { limit: 15 },
+    language: {
+      search: { placeholder: 'Buscar cita...' },
+      pagination: { previous: '‹', next: '›', navigate: (p,pp) => `Pág ${p} de ${pp}`, page: p=>`Pág ${p}`, showing: 'Mostrando', of: 'de', to: 'a', results: 'resultados' },
+      loading: 'Cargando...',
+      noRecordsFound: 'Sin resultados',
+      error: 'Error al cargar datos'
+    }
+  }).render(document.getElementById('grid-citas'));
+}
+
+async function load() {
+  const rows = await apiFetch('/api/citas');
+  _allCitas = rows;
+  buildKanban(rows);
+  buildGrid(rows);
+  return rows;
+}
+
+async function loadCatalogos() {
+  const clientes = await apiFetch('/api/clientes');
+  document.getElementById('f-cliente').innerHTML = clientes.map(c=>`<option value="${c.ID_CLIENTE}">${c.NOMBRE}</option>`).join('');
+  vehiculosData = await apiFetch('/api/vehiculos');
+  loadVehiculos();
+}
+
+function loadVehiculos() {
+  const cid = document.getElementById('f-cliente').value;
+  const veh = vehiculosData.filter(v => v.ID_CLIENTE === cid);
+  document.getElementById('f-vehiculo').innerHTML = veh.map(v=>`<option value="${v.ID_VEHICULO}">${v.PLACA} – ${v.MODELO}</option>`).join('');
+}
+
+async function nuevaCita() {
+  document.getElementById('f-id').value = await nextId('/api/citas', 'CIT', 3, 'ID_CITA');
+  openModal('modal-cita');
+}
+
+async function guardar() {
+  const dt = document.getElementById('f-fecha').value.replace('T',' ');
+  const body = { id_cita: document.getElementById('f-id').value, id_cliente: document.getElementById('f-cliente').value, id_vehiculo: document.getElementById('f-vehiculo').value, fecha_hora: dt, estado: document.getElementById('f-estado').value, observacion: document.getElementById('f-obs').value };
+  try { await apiFetch('/api/citas', { method:'POST', body:JSON.stringify(body) }); toast('Cita creada','success'); closeModal('modal-cita'); load(); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+function editarCita(id) {
+  const r = _allCitas.find(x => x.ID_CITA === id);
+  if (!r) return;
+  stateEditId = id;
+  // datetime-local needs format YYYY-MM-DDTHH:MM
+  document.getElementById('fe-fecha').value = (r.FECHA_HORA || '').replace(' ', 'T');
+  document.getElementById('fe-estado').value = r.ESTADO_CITA || 'PENDIENTE';
+  document.getElementById('fe-obs').value = r.OBSERVACION || '';
+  openModal('modal-edit-cita');
+}
+
+async function guardarEditCita() {
+  const fechaRaw = document.getElementById('fe-fecha').value;
+  const body = {
+    estado:     document.getElementById('fe-estado').value,
+    fecha_hora: fechaRaw ? fechaRaw.replace('T', ' ') : undefined,
+    observacion: document.getElementById('fe-obs').value
+  };
+  try {
+    await apiFetch(`/api/citas/${stateEditId}`, { method:'PUT', body: JSON.stringify(body) });
+    toast('Cita actualizada', 'success');
+    closeModal('modal-edit-cita');
+    await load();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function editEstado(id) { stateEditId = id; openModal('modal-estado'); }
+
+async function guardarEstado() {
+  try { await apiFetch(`/api/citas/${stateEditId}`, { method:'PUT', body:JSON.stringify({ estado: document.getElementById('f-estado2').value }) }); toast('Estado actualizado','success'); closeModal('modal-estado'); load(); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+async function eliminar(id) {
+  confirmDialog({
+    title: 'Eliminar cita',
+    message: `¿Estás seguro de que deseas eliminar la cita ${id}?`,
+    confirmText: 'Eliminar', danger: true,
+    onConfirm: async () => {
+      try { await apiFetch(`/api/citas/${id}`, { method:'DELETE' }); toast('Cita eliminada','success'); load(); }
+      catch(e) { toast(e.message,'error'); }
+    }
+  });
+}
+
+loadCatalogos();
+load();
+</script>
+</body>
+</html>

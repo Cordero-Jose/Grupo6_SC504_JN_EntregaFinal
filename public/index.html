@@ -1,0 +1,179 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard — Lubricentro</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <h2>Lubricentro</h2>
+  </div>
+  <nav>
+    <div class="section-title">Principal</div>
+    <a href="index.html">Dashboard</a>
+    <div class="section-title">Operaciones</div>
+    <a href="clientes.html">Clientes</a>
+    <a href="vehiculos.html">Vehículos</a>
+    <a href="citas.html">Citas</a>
+    <a href="ordenes.html">Órdenes</a>
+    <div class="section-title">Inventario</div>
+    <a href="productos.html">Productos</a>
+    <a href="inventario.html">Inventario</a>
+    <a href="servicios.html">Servicios</a>
+    <div class="section-title">Finanzas</div>
+    <a href="facturas.html">Facturas</a>
+    <a href="pagos.html">Pagos</a>
+    <div class="section-title">Sistema</div>
+    <a href="usuarios.html">Usuarios</a>
+    <a href="auditoria.html">Auditoría</a>
+  </nav>
+</aside>
+<div class="main">
+  <div class="topbar">
+    <div>
+      <h1>Dashboard</h1>
+      <div class="subtitle">Resumen general del sistema</div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="stats-grid" id="stats"></div>
+
+    <div class="charts-grid">
+      <div class="chart-panel">
+        <h3>Citas por estado</h3>
+        <div style="position:relative;height:220px">
+          <canvas id="chartCitas"></canvas>
+        </div>
+      </div>
+      <div class="chart-panel">
+        <h3>Ingresos por mes (₡)</h3>
+        <div style="position:relative;height:220px">
+          <canvas id="chartIngresos"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div class="panel">
+        <div class="panel-header">
+          <h3>Citas recientes</h3>
+          <a href="citas.html" class="btn btn-outline btn-sm">Ver todas</a>
+        </div>
+        <div class="panel-body table-wrap">
+          <table>
+            <thead><tr><th>Cliente</th><th>Placa</th><th>Fecha</th><th>Estado</th></tr></thead>
+            <tbody id="tbl-citas"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <h3>Facturas pendientes</h3>
+          <a href="facturas.html" class="btn btn-outline btn-sm">Ver todas</a>
+        </div>
+        <div class="panel-body table-wrap">
+          <table>
+            <thead><tr><th>Factura</th><th>Total</th><th>Estado</th></tr></thead>
+            <tbody id="tbl-facturas"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="app.js"></script>
+<script>
+(async () => {
+  try {
+    const [clientes, vehiculos, citas, productos, facturas] = await Promise.all([
+      apiFetch('/api/clientes'),
+      apiFetch('/api/vehiculos'),
+      apiFetch('/api/citas'),
+      apiFetch('/api/productos'),
+      apiFetch('/api/facturas')
+    ]);
+
+    const pendientes = facturas.filter(f => f.ESTADO === 'PENDIENTE').length;
+    const bajoStock  = productos.filter(p => p.EXISTENCIA_ACTUAL <= p.STOCK_MINIMO).length;
+
+    document.getElementById('stats').innerHTML = `
+      <a href="clientes.html" class="stat-card"><div class="value">${clientes.length}</div><div class="label">Clientes</div></a>
+      <a href="vehiculos.html" class="stat-card"><div class="value">${vehiculos.length}</div><div class="label">Vehículos</div></a>
+      <a href="citas.html" class="stat-card accent"><div class="value">${citas.filter(c=>c.ESTADO_CITA==='PENDIENTE').length}</div><div class="label">Citas pendientes</div></a>
+      <a href="facturas.html" class="stat-card accent"><div class="value">${pendientes}</div><div class="label">Facturas pendientes</div></a>
+      <a href="inventario.html" class="stat-card danger"><div class="value">${bajoStock}</div><div class="label">Bajo stock</div></a>
+      <a href="productos.html" class="stat-card"><div class="value">${productos.length}</div><div class="label">Productos</div></a>
+    `;
+
+    // ── Citas por estado (Donut) ──────────────────────────
+    const estadosCitas = ['PENDIENTE','CONFIRMADA','ATENDIDA','CANCELADA'];
+    const conteosCitas = estadosCitas.map(e => citas.filter(c => c.ESTADO_CITA === e).length);
+    new Chart(document.getElementById('chartCitas'), {
+      type: 'doughnut',
+      data: {
+        labels: estadosCitas,
+        datasets: [{ data: conteosCitas,
+          backgroundColor: ['#f97316','#3b82f6','#16a34a','#dc2626'],
+          borderWidth: 0, hoverOffset: 6 }]
+      },
+      options: { maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 12 }, boxWidth: 12 } } } }
+    });
+
+    // ── Ingresos por mes (Bar) ───────────────────────────
+    const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    const ingresosPorMes = Array(12).fill(0);
+    facturas.filter(f => f.ESTADO === 'PAGADA').forEach(f => {
+      const m = new Date(f.FECHA_EMISION).getMonth();
+      if (m >= 0) ingresosPorMes[m] += Number(f.TOTAL) || 0;
+    });
+    const ahora    = new Date().getMonth();
+    const labels6  = meses.slice(Math.max(0, ahora - 5), ahora + 1);
+    const data6    = ingresosPorMes.slice(Math.max(0, ahora - 5), ahora + 1);
+    new Chart(document.getElementById('chartIngresos'), {
+      type: 'bar',
+      data: {
+        labels: labels6,
+        datasets: [{ label: 'Ingresos', data: data6,
+          backgroundColor: '#f97316', borderRadius: 6, borderSkipped: false }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { ticks: { callback: v => '₡' + (v/1000).toFixed(0) + 'k', font: { family: 'Inter', size: 11 } }, grid: { color: '#f0f2f5' } },
+          x: { ticks: { font: { family: 'Inter', size: 11 } }, grid: { display: false } }
+        }
+      }
+    });
+
+    // ── Tables ───────────────────────────────────────────
+    document.getElementById('tbl-citas').innerHTML = citas.slice(0,6).map(c=>`
+      <tr>
+        <td>${c.CLIENTE}</td><td>${c.PLACA}</td><td>${(c.FECHA_HORA||'').slice(0,10)}</td>
+        <td>
+          <select class="estado-inline" data-id="${c.ID_CITA}" onchange="cambiarEstadoCita(this)" style="border:none;background:transparent;font-size:12px;font-weight:600;cursor:pointer;color:inherit;padding:0">
+            ${['PENDIENTE','CONFIRMADA','ATENDIDA','CANCELADA'].map(e=>`<option value="${e}"${c.ESTADO_CITA===e?' selected':''}>${e}</option>`).join('')}
+          </select>
+        </td>
+      </tr>`).join('');
+    document.getElementById('tbl-facturas').innerHTML = facturas.filter(f=>f.ESTADO==='PENDIENTE').slice(0,6).map(f=>`
+      <tr class="clickable" onclick="location.href='facturas.html?id=${f.ID_FACTURA}'">
+        <td>${f.ID_FACTURA}</td><td>${fmtCRC(f.TOTAL)}</td><td>${badgeEstado(f.ESTADO)}</td>
+      </tr>`).join('');
+  } catch(e){ toast(e.message,'error'); }
+})();
+
+async function cambiarEstadoCita(sel) {
+  const id  = sel.dataset.id;
+  const est = sel.value;
+  try {
+    await apiFetch(`/api/citas/${id}`, { method:'PUT', body: JSON.stringify({ estado: est }) });
+    toast(`Cita ${id} → ${est}`, 'success');
+  } catch(e) { toast(e.message,'error'); }
+}
+</script>
+</body></html>

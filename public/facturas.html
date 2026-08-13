@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Facturas — Lubricentro</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridjs/dist/theme/mermaid.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <h2>Lubricentro</h2>
+  </div>
+  <nav>
+    <div class="section-title">Principal</div>
+    <a href="index.html">Dashboard</a>
+    <div class="section-title">Operaciones</div>
+    <a href="clientes.html">Clientes</a>
+    <a href="vehiculos.html">Vehículos</a>
+    <a href="citas.html">Citas</a>
+    <a href="ordenes.html">Órdenes</a>
+    <a href="servicios.html">Servicios</a>
+    <div class="section-title">Inventario</div>
+    <a href="productos.html">Productos</a>
+    <a href="inventario.html">Inventario</a>
+    <div class="section-title">Finanzas</div>
+    <a href="facturas.html">Facturas</a>
+    <a href="pagos.html">Pagos</a>
+    <div class="section-title">Sistema</div>
+    <a href="usuarios.html">Usuarios</a>
+    <a href="auditoria.html">Auditoría</a>
+  </nav>
+</aside>
+<div class="main">
+  <div class="topbar">
+    <div><h1>Facturas</h1><div class="subtitle">Facturación de órdenes de servicio (IVA 13%)</div></div>
+    <button class="btn btn-primary" onclick="nuevaFactura()">+ Nueva Factura</button>
+  </div>
+  <div class="content">
+    <div class="stats-grid" id="statsFact"></div>
+    <div class="charts-grid" style="margin-bottom:20px">
+      <div class="chart-panel">
+        <h3>Distribución por estado</h3>
+        <div style="position:relative;height:220px"><canvas id="chartEstFact"></canvas></div>
+      </div>
+      <div class="chart-panel">
+        <h3>Subtotal / IVA / Total por mes</h3>
+        <div style="position:relative;height:220px"><canvas id="chartMesFact"></canvas></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><h3>Lista de Facturas</h3></div>
+      <div class="panel-body" id="grid-facturas"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalFact">
+  <div class="modal">
+    <div class="modal-header"><h3>Nueva Factura</h3><button class="modal-close" onclick="closeModal('modalFact')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group" style="display:none"><label>ID Factura *</label><input id="fId"></div>
+        <div class="form-group form-full">
+          <label>Orden *</label>
+          <select id="fOrden"><option value="">— seleccione —</option></select>
+          <span class="form-hint">Solo órdenes FINALIZADAS sin factura previa.</span>
+        </div>
+        <div class="form-group">
+          <label>Fecha Emisión *</label><input id="fFecha" type="date">
+          <span class="form-hint">Fecha de emisión de la factura.</span>
+        </div>
+        <div class="form-group">
+          <label>Subtotal (₡) *</label>
+          <input id="fSub" type="number" min="0" step="0.01" placeholder="0.00" oninput="calcularIVA()">
+          <span class="form-hint">Monto antes de impuestos. El IVA se calcula automáticamente.</span>
+        </div>
+        <div class="form-group">
+          <label>IVA (13%) — calculado</label>
+          <input id="fIva" type="number" readonly style="background:#f7f8fa">
+          <span class="form-hint">13% del subtotal, calculado automáticamente.</span>
+        </div>
+        <div class="form-group">
+          <label>Total — calculado</label>
+          <input id="fTotal" type="number" readonly style="background:#f7f8fa">
+          <span class="form-hint">Subtotal + IVA. Este es el monto a cobrar.</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalFact')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarFactura()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalEstFact">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header"><h3>Cambiar Estado</h3><button class="modal-close" onclick="closeModal('modalEstFact')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group form-full"><label>Estado *</label>
+          <select id="fEstValor" onchange="togglePagoFields()" style="width:100%">
+            <option>PENDIENTE</option><option>PAGADA</option><option>ANULADA</option>
+          </select>
+        </div>
+        <!-- campos extra que aparecen SOLO cuando se elige PAGADA -->
+        <div id="pagoFields" style="display:none;contents:unset" class="form-full">
+          <div class="form-grid" style="margin-top:4px">
+            <div class="form-group form-full" style="margin-bottom:4px">
+              <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px;font-size:13px;color:#92400e">
+                Al marcar como <strong>PAGADA</strong> se registrará un pago automáticamente.
+              </div>
+            </div>
+            <div class="form-group"><label>Método de pago *</label>
+              <select id="fPagoMetodo" style="width:100%">
+                <option value="EFECTIVO">Efectivo</option>
+                <option value="TARJETA">Tarjeta</option>
+                <option value="SINPE">SINPE</option>
+                <option value="TRANSFERENCIA">Transferencia</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Monto (₡) *</label>
+              <input id="fPagoMonto" type="number" min="0" step="0.01" placeholder="0.00">
+            </div>
+            <div class="form-group"><label>Fecha de pago *</label>
+              <input id="fPagoFecha" type="date">
+            </div>
+            <div class="form-group"><label>Referencia (opcional)</label>
+              <input id="fPagoRef" placeholder="N° transacción, comprobante...">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalEstFact')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveEstFact()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/gridjs/dist/gridjs.umd.js"></script>
+<script src="app.js"></script>
+<script>
+let fEstId = null;
+let _gridFact = null;
+
+async function nuevaFactura() {
+  document.getElementById('fId').value = await nextId('/api/facturas', 'F');
+  openModal('modalFact');
+}
+
+let _chartEstFact = null, _chartMesFact = null;
+async function loadFacturas() {
+  const rows = await apiFetch('/api/facturas');
+
+  // Grid.js
+  const data = rows.map(r => [
+    r.ID_FACTURA, r.ID_ORDEN, r.FECHA_EMISION,
+    fmtCRC(r.SUBTOTAL), fmtCRC(r.IMPUESTO), fmtCRC(r.TOTAL),
+    r.ESTADO, r.METODO_PAGO||'—', r.ID_FACTURA+'|'+r.ESTADO
+  ]);
+  if (_gridFact) { _gridFact.updateConfig({ data }).forceRender(); }
+  else {
+    _gridFact = new gridjs.Grid({
+      columns: [
+        {name:'ID Factura'}, {name:'Orden'}, {name:'Fecha'},
+        {name:'Subtotal'}, {name:'IVA'}, {name:'Total'},
+        { name:'Estado', formatter: cell => gridjs.html(badgeEstado(cell)) },
+        {name:'Método Pago'},
+        { name:'Acciones', sort:false, formatter: cell => {
+          const [id, est] = cell.split('|');
+          return gridjs.html(`<button class="btn btn-warning btn-sm" onclick="openEstFact('${id}','${est}')">Estado</button>`);
+        }}
+      ],
+      data, search:true, sort:true, pagination:{limit:15},
+      language:{search:{placeholder:'Buscar factura...'},pagination:{previous:'‹',next:'›',navigate:(p,pp)=>`Pág ${p} de ${pp}`,page:p=>`Pág ${p}`,showing:'Mostrando',of:'de',to:'a',results:'resultados'},loading:'Cargando...',noRecordsFound:'Sin resultados',error:'Error'}
+    }).render(document.getElementById('grid-facturas'));
+  }
+
+  // ── Stat cards ──────────────────────────────────────────────
+  const pendiente = rows.filter(r => r.ESTADO === 'PENDIENTE');
+  const pagada    = rows.filter(r => r.ESTADO === 'PAGADA');
+  const anulada   = rows.filter(r => r.ESTADO === 'ANULADA');
+  const totalCobrado = pagada.reduce((s,r) => s + Number(r.TOTAL), 0);
+  document.getElementById('statsFact').innerHTML = `
+    <div class="stat-card"><div class="value">${rows.length}</div><div class="label">Total facturas</div></div>
+    <div class="stat-card accent"><div class="value">${pendiente.length}</div><div class="label">Pendientes</div></div>
+    <div class="stat-card"><div class="value" style="color:#16a34a">${pagada.length}</div><div class="label">Pagadas</div></div>
+    <div class="stat-card danger"><div class="value">${anulada.length}</div><div class="label">Anuladas</div></div>
+    <div class="stat-card accent"><div class="value" style="font-size:20px">${fmtCRC(totalCobrado)}</div><div class="label">Total cobrado</div></div>
+  `;
+
+  // ── Polar Area: estado de facturas ───────────────────────────
+  if (_chartEstFact) _chartEstFact.destroy();
+  _chartEstFact = new Chart(document.getElementById('chartEstFact'), {
+    type: 'polarArea',
+    data: { labels: ['Pendiente','Pagada','Anulada'],
+      datasets: [{ data: [pendiente.length, pagada.length, anulada.length],
+        backgroundColor: ['rgba(249,115,22,0.7)','rgba(22,163,74,0.7)','rgba(220,38,38,0.7)'],
+        borderColor:     ['#f97316','#16a34a','#dc2626'], borderWidth: 1 }]},
+    options: { maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { family:'Inter', size:12 }, boxWidth:12 }}},
+      scales: { r: { ticks: { backdropColor: 'transparent', font: { family:'Inter', size:10 }},
+                     grid: { color: '#e8eaed' }}}}
+  });
+
+  // ── Stacked Bar: Subtotal + IVA apilados por mes ─────────────
+  const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const ahora = new Date().getMonth();
+  const labs6 = meses.slice(Math.max(0,ahora-5), ahora+1);
+  const subtotalesMes = Array(12).fill(0);
+  const impuestosMes  = Array(12).fill(0);
+  rows.forEach(r => {
+    const m = new Date(r.FECHA_EMISION).getMonth();
+    if (m >= 0) {
+      subtotalesMes[m] += Number(r.SUBTOTAL)||0;
+      impuestosMes[m]  += Number(r.IMPUESTO)||0;
+    }
+  });
+  if (_chartMesFact) _chartMesFact.destroy();
+  _chartMesFact = new Chart(document.getElementById('chartMesFact'), {
+    type: 'bar',
+    data: {
+      labels: labs6,
+      datasets: [
+        { label: 'Subtotal', data: subtotalesMes.slice(Math.max(0,ahora-5),ahora+1), backgroundColor: '#f97316', borderRadius: 0, stack: 'fact' },
+        { label: 'IVA 13%',  data: impuestosMes.slice(Math.max(0,ahora-5),ahora+1),  backgroundColor: '#fbbf24', borderRadius: 4,  stack: 'fact' }
+      ]
+    },
+    options: { maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { family:'Inter', size:12 }, boxWidth:12 }}},
+      scales: {
+        x: { stacked: true, ticks: { font:{ family:'Inter', size:11 }}, grid:{ display:false }},
+        y: { stacked: true, ticks: { callback: v=>'₡'+(v/1000).toFixed(0)+'k', font:{ family:'Inter', size:11 }}, grid:{ color:'#f0f2f5' }}
+      }
+    }
+  });
+
+  return rows;
+}
+
+async function loadOrdenes() {
+  // ?sin_factura=1 → backend returns only FINALIZADA orders with no existing invoice
+  const rows = await apiFetch('/api/ordenes?sin_factura=1');
+  const sel = document.getElementById('fOrden');
+  sel.innerHTML = '<option value="">— seleccione —</option>';
+  if (rows.length === 0) {
+    sel.innerHTML += '<option value="" disabled>Sin órdenes disponibles</option>';
+  } else {
+    rows.forEach(o =>
+      sel.innerHTML += `<option value="${o.ID_ORDEN}">${o.ID_ORDEN} — ${o.CLIENTE} (${o.PLACA})</option>`);
+  }
+  document.getElementById('fFecha').value = new Date().toISOString().split('T')[0];
+}
+
+function calcularIVA() {
+  const sub = parseFloat(document.getElementById('fSub').value) || 0;
+  const iva = Math.round(sub * 0.13 * 100) / 100;
+  document.getElementById('fIva').value   = iva.toFixed(2);
+  document.getElementById('fTotal').value = (sub + iva).toFixed(2);
+}
+
+async function guardarFactura() {
+  const body = {
+    id_factura: document.getElementById('fId').value.trim(),
+    id_orden: document.getElementById('fOrden').value,
+    fecha_emision: document.getElementById('fFecha').value,
+    subtotal: document.getElementById('fSub').value,
+    impuesto: document.getElementById('fIva').value,
+    total: document.getElementById('fTotal').value,
+    estado: 'PENDIENTE'
+  };
+  try {
+    await apiFetch('/api/facturas', { method:'POST', body: JSON.stringify(body) });
+    toast('Factura creada','success'); closeModal('modalFact'); loadFacturas();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function togglePagoFields() {
+  const esPagada = document.getElementById('fEstValor').value === 'PAGADA';
+  document.getElementById('pagoFields').style.display = esPagada ? 'block' : 'none';
+  if (esPagada && !document.getElementById('fPagoFecha').value)
+    document.getElementById('fPagoFecha').value = new Date().toISOString().split('T')[0];
+}
+
+function openEstFact(id, est) {
+  fEstId = id;
+  document.getElementById('fEstValor').value = est;
+  togglePagoFields();
+  openModal('modalEstFact');
+}
+
+async function saveEstFact() {
+  const nuevoEst = document.getElementById('fEstValor').value;
+  try {
+    if (nuevoEst === 'PAGADA') {
+      // 1. Registrar el pago (esto también marca la factura como PAGADA en el backend)
+      const pagoId  = await nextId('/api/pagos', 'PAG');
+      const monto   = document.getElementById('fPagoMonto').value;
+      const metodo  = document.getElementById('fPagoMetodo').value;
+      const fecha   = document.getElementById('fPagoFecha').value;
+      const ref     = document.getElementById('fPagoRef').value.trim();
+      if (!monto || parseFloat(monto) <= 0) { toast('Ingrese el monto del pago','error'); return; }
+      if (!fecha)  { toast('Ingrese la fecha del pago','error'); return; }
+      await apiFetch('/api/pagos', { method:'POST', body: JSON.stringify({
+        id_pago: pagoId, id_factura: fEstId,
+        fecha_pago: fecha, monto, metodo_pago: metodo,
+        referencia: ref || null
+      })});
+      toast('Pago registrado y factura marcada como PAGADA','success');
+    } else {
+      // 2. Solo actualizar estado (PENDIENTE o ANULADA)
+      await apiFetch('/api/facturas/'+fEstId, { method:'PUT', body: JSON.stringify({ estado: nuevoEst }) });
+      toast('Estado actualizado','success');
+    }
+    closeModal('modalEstFact');
+    loadFacturas();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+loadOrdenes();
+loadFacturas().then(() => {
+  const id = new URLSearchParams(location.search).get('id');
+  if (!id) return;
+  const row = document.querySelector(`#tbFacturas tr[data-id="${id}"]`);
+  if (row) {
+    row.classList.add('highlight');
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+});
+</script>
+</body>
+</html>

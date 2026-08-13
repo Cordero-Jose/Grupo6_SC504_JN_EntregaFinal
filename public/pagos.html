@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pagos — Lubricentro</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridjs/dist/theme/mermaid.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <h2>Lubricentro</h2>
+  </div>
+  <nav>
+    <div class="section-title">Principal</div>
+    <a href="index.html">Dashboard</a>
+    <div class="section-title">Operaciones</div>
+    <a href="clientes.html">Clientes</a>
+    <a href="vehiculos.html">Vehículos</a>
+    <a href="citas.html">Citas</a>
+    <a href="ordenes.html">Órdenes</a>
+    <a href="servicios.html">Servicios</a>
+    <div class="section-title">Inventario</div>
+    <a href="productos.html">Productos</a>
+    <a href="inventario.html">Inventario</a>
+    <div class="section-title">Finanzas</div>
+    <a href="facturas.html">Facturas</a>
+    <a href="pagos.html">Pagos</a>
+    <div class="section-title">Sistema</div>
+    <a href="usuarios.html">Usuarios</a>
+    <a href="auditoria.html">Auditoría</a>
+  </nav>
+</aside>
+<div class="main">
+  <div class="topbar">
+    <div><h1>Pagos</h1><div class="subtitle">Registro de pagos de facturas</div></div>
+    <button class="btn btn-primary" onclick="nuevoPago()">+ Registrar Pago</button>
+  </div>
+  <div class="content">
+    <div class="stats-grid" id="statsPagos"></div>
+    <div class="charts-grid" style="margin-bottom:20px">
+      <div class="chart-panel">
+        <h3>Distribución por método de pago</h3>
+        <div style="position:relative;height:220px"><canvas id="chartMetodo"></canvas></div>
+      </div>
+      <div class="chart-panel">
+        <h3>Ingresos por método — últimos 6 meses</h3>
+        <div style="position:relative;height:220px"><canvas id="chartMesPago"></canvas></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><h3>Historial de Pagos</h3></div>
+      <div class="panel-body" id="grid-pagos"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalPago">
+  <div class="modal">
+    <div class="modal-header"><h3>Registrar Pago</h3><button class="modal-close" onclick="closeModal('modalPago')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group" style="display:none"><label>ID Pago *</label><input id="pgId"></div>
+        <div class="form-group">
+          <label>Factura Pendiente *</label>
+          <select id="pgFactura" onchange="setMonto()"><option value="">— seleccione —</option></select>
+          <span class="form-hint">Solo se muestran facturas con estado PENDIENTE.</span>
+        </div>
+        <div class="form-group">
+          <label>Fecha Pago *</label><input id="pgFecha" type="date">
+          <span class="form-hint">Fecha en que se realizó el pago.</span>
+        </div>
+        <div class="form-group">
+          <label>Monto (₡) *</label><input id="pgMonto" type="number" min="0" step="0.01" placeholder="0.00">
+          <span class="form-hint">Se pre-llena con el total de la factura seleccionada.</span>
+        </div>
+        <div class="form-group">
+          <label>Método de Pago *</label>
+          <select id="pgMetodo"><option>EFECTIVO</option><option>TARJETA</option><option>SINPE</option><option>TRANSFERENCIA</option></select>
+          <span class="form-hint">Seleccione cómo realizó el pago el cliente.</span>
+        </div>
+        <div class="form-group">
+          <label>Referencia</label><input id="pgRef" placeholder="AUT-12345 / SINPE-xxxxx">
+          <span class="form-hint">Opcional. Número de autorización, comprobante SINPE, etc.</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalPago')">Cancelar</button>
+      <button class="btn btn-success" onclick="guardarPago()">Confirmar Pago</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/gridjs/dist/gridjs.umd.js"></script>
+<script src="app.js"></script>
+<script>
+let facturasPendientes = [];
+let _gridPagos = null;
+
+async function nuevoPago() {
+  document.getElementById('pgId').value = await nextId('/api/pagos', 'PAG');
+  openModal('modalPago');
+}
+
+let _chartMetodo = null, _chartMesPago = null;
+async function loadPagos() {
+  const rows = await apiFetch('/api/pagos');
+
+  // Grid.js
+  const data = rows.map(r => [
+    r.ID_PAGO, r.ID_FACTURA, r.FECHA_PAGO,
+    fmtCRC(r.MONTO), r.METODO_PAGO, r.REFERENCIA||'—'
+  ]);
+  if (_gridPagos) { _gridPagos.updateConfig({ data }).forceRender(); }
+  else {
+    _gridPagos = new gridjs.Grid({
+      columns: [
+        {name:'ID Pago'}, {name:'Factura'}, {name:'Fecha'}, {name:'Monto'},
+        { name:'Método', formatter: cell => gridjs.html(`<span class="badge badge-info">${cell}</span>`) },
+        {name:'Referencia'}
+      ],
+      data, search:true, sort:true, pagination:{limit:15},
+      language:{search:{placeholder:'Buscar pago...'},pagination:{previous:'‹',next:'›',navigate:(p,pp)=>`Pág ${p} de ${pp}`,page:p=>`Pág ${p}`,showing:'Mostrando',of:'de',to:'a',results:'resultados'},loading:'Cargando...',noRecordsFound:'Sin resultados',error:'Error'}
+    }).render(document.getElementById('grid-pagos'));
+  }
+
+  // ── Stat cards ──────────────────────────────────────────────
+  const totalMonto   = rows.reduce((s,r) => s + Number(r.MONTO), 0);
+  const efectivo     = rows.filter(r => r.METODO_PAGO === 'EFECTIVO').length;
+  const sinpe        = rows.filter(r => r.METODO_PAGO === 'SINPE').length;
+  const tarjeta      = rows.filter(r => r.METODO_PAGO === 'TARJETA').length;
+  document.getElementById('statsPagos').innerHTML = `
+    <div class="stat-card"><div class="value">${rows.length}</div><div class="label">Total pagos</div></div>
+    <div class="stat-card accent"><div class="value" style="font-size:20px">${fmtCRC(totalMonto)}</div><div class="label">Total recaudado</div></div>
+    <div class="stat-card"><div class="value">${efectivo}</div><div class="label">Efectivo</div></div>
+    <div class="stat-card"><div class="value">${sinpe}</div><div class="label">SINPE</div></div>
+    <div class="stat-card"><div class="value">${tarjeta}</div><div class="label">Tarjeta</div></div>
+  `;
+
+  // ── Polar Area: método de pago ───────────────────────────────
+  const metodos = ['EFECTIVO','TARJETA','SINPE','TRANSFERENCIA'];
+  const montosPorMetodo = metodos.map(m => rows.filter(r=>r.METODO_PAGO===m).reduce((s,r)=>s+Number(r.MONTO),0));
+  if (_chartMetodo) _chartMetodo.destroy();
+  _chartMetodo = new Chart(document.getElementById('chartMetodo'), {
+    type: 'polarArea',
+    data: { labels: metodos, datasets: [{ data: montosPorMetodo,
+      backgroundColor: ['rgba(249,115,22,0.7)','rgba(59,130,246,0.7)','rgba(22,163,74,0.7)','rgba(124,58,237,0.7)'],
+      borderColor:     ['#f97316','#3b82f6','#16a34a','#7c3aed'], borderWidth: 1 }]},
+    options: { maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { family:'Inter', size:12 }, boxWidth:12 }}},
+      scales: { r: { ticks: { backdropColor:'transparent', callback: v=>'₡'+(v/1000).toFixed(0)+'k', font:{ family:'Inter', size:9 }},
+                     grid:{ color:'#e8eaed' }}}}
+  });
+
+  // ── Grouped Bar: ingresos por método por mes (últimos 6 meses) ─
+  const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const ahora = new Date().getMonth();
+  const anio  = new Date().getFullYear();
+  // Build last 6 month labels including year rollover
+  const labs6 = [], idxs6 = [];
+  for (let i = 5; i >= 0; i--) {
+    const m = ((ahora - i) + 12) % 12;
+    labs6.push(meses[m]); idxs6.push(m);
+  }
+  const colores = ['#f97316','#3b82f6','#16a34a','#7c3aed'];
+  const metodoDatasets = metodos.map((m,i) => {
+    const porMes = Array(12).fill(0);
+    rows.filter(r=>r.METODO_PAGO===m).forEach(r=>{
+      const mo = new Date(r.FECHA_PAGO).getMonth();
+      if (mo >= 0) porMes[mo] += Number(r.MONTO)||0;
+    });
+    return {
+      label: m,
+      data: idxs6.map(idx => porMes[idx]),
+      backgroundColor: colores[i],
+      borderRadius: 4, borderSkipped: false
+    };
+  });
+  if (_chartMesPago) _chartMesPago.destroy();
+  _chartMesPago = new Chart(document.getElementById('chartMesPago'), {
+    type: 'bar',
+    data: { labels: labs6, datasets: metodoDatasets },
+    options: {
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { family:'Inter', size:11 }, boxWidth:12 }}},
+      scales: {
+        x: { ticks: { font:{ family:'Inter', size:11 }}, grid:{ display:false }},
+        y: { ticks: { callback: v => v === 0 ? '0' : '₡'+(v/1000).toFixed(0)+'k', font:{ family:'Inter', size:10 }}, grid:{ color:'#f0f2f5' }}
+      }
+    }
+  });
+}
+
+async function loadFacturasPendientes() {
+  facturasPendientes = await apiFetch('/api/facturas');
+  const pending = facturasPendientes.filter(f => f.ESTADO === 'PENDIENTE');
+  const sel = document.getElementById('pgFactura');
+  pending.forEach(f => sel.innerHTML += `<option value="${f.ID_FACTURA}" data-total="${f.TOTAL}">${f.ID_FACTURA} — ${fmtCRC(f.TOTAL)}</option>`);
+  document.getElementById('pgFecha').value = new Date().toISOString().split('T')[0];
+}
+
+function setMonto() {
+  const sel = document.getElementById('pgFactura');
+  const opt = sel.options[sel.selectedIndex];
+  if (opt && opt.dataset.total) document.getElementById('pgMonto').value = opt.dataset.total;
+}
+
+async function guardarPago() {
+  const body = {
+    id_pago: document.getElementById('pgId').value.trim(),
+    id_factura: document.getElementById('pgFactura').value,
+    fecha_pago: document.getElementById('pgFecha').value,
+    monto: document.getElementById('pgMonto').value,
+    metodo_pago: document.getElementById('pgMetodo').value,
+    referencia: document.getElementById('pgRef').value.trim()
+  };
+  try {
+    await apiFetch('/api/pagos', { method:'POST', body: JSON.stringify(body) });
+    toast('Pago registrado y factura marcada como PAGADA','success');
+    closeModal('modalPago'); loadPagos();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+loadFacturasPendientes();
+loadPagos();
+</script>
+</body>
+</html>

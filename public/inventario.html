@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Inventario — Lubricentro</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridjs/dist/theme/mermaid.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <h2>Lubricentro</h2>
+  </div>
+  <nav>
+    <div class="section-title">Principal</div>
+    <a href="index.html">Dashboard</a>
+    <div class="section-title">Operaciones</div>
+    <a href="clientes.html">Clientes</a>
+    <a href="vehiculos.html">Vehículos</a>
+    <a href="citas.html">Citas</a>
+    <a href="ordenes.html">Órdenes</a>
+    <div class="section-title">Inventario</div>
+    <a href="productos.html">Productos</a>
+    <a href="inventario.html">Inventario</a>
+    <div class="section-title">Finanzas</div>
+    <a href="facturas.html">Facturas</a>
+    <a href="pagos.html">Pagos</a>
+    <div class="section-title">Sistema</div>
+    <a href="usuarios.html">Usuarios</a>
+    <a href="auditoria.html">Auditoría</a>
+  </nav>
+</aside>
+<div class="main">
+  <div class="topbar">
+    <div><h1>Movimientos de Inventario</h1><div class="subtitle">Entradas y salidas de productos</div></div>
+    <button class="btn btn-primary" onclick="nuevoMovimiento()">+ Registrar Movimiento</button>
+  </div>
+  <div class="content">
+    <div class="stats-grid" id="statsInv"></div>
+    <div class="charts-grid" style="margin-bottom:20px">
+      <div class="chart-panel">
+        <h3>Entradas vs Salidas por producto</h3>
+        <div style="position:relative;height:200px"><canvas id="chartMovs"></canvas></div>
+      </div>
+      <div class="chart-panel">
+        <h3>Proporción Entradas / Salidas</h3>
+        <div style="position:relative;height:200px"><canvas id="chartTipo"></canvas></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <h3>Historial de Movimientos</h3>
+        <div class="flex-gap">
+          <span id="filtroLabel" style="font-size:12px;color:#6b7280"></span>
+          <select id="selFiltroTipo" class="btn btn-outline btn-sm" style="padding:4px 8px;cursor:pointer" onchange="filtrarGrid(this.value||null)">
+            <option value="">Todos</option>
+            <option value="ENTRADA">Solo Entradas</option>
+            <option value="SALIDA">Solo Salidas</option>
+          </select>
+        </div>
+      </div>
+      <div class="panel-body" id="grid-inventario"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalMov">
+  <div class="modal">
+    <div class="modal-header"><h3>Registrar Movimiento</h3><button class="modal-close" onclick="closeModal('modalMov')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group" style="display:none"><label>ID Movimiento *</label><input id="mId"></div>
+        <div class="form-group">
+          <label>Producto *</label>
+          <select id="mProducto"><option value="">— seleccione —</option></select>
+          <span class="form-hint">Seleccione el producto afectado.</span>
+        </div>
+        <div class="form-group">
+          <label>Tipo *</label>
+          <select id="mTipo"><option>ENTRADA</option><option>SALIDA</option></select>
+          <span class="form-hint">ENTRADA suma existencia. SALIDA la reduce.</span>
+        </div>
+        <div class="form-group">
+          <label>Cantidad *</label><input id="mCantidad" type="number" min="1" value="1">
+          <span class="form-hint">Número de unidades a registrar (mínimo 1).</span>
+        </div>
+        <div class="form-group">
+          <label>Fecha *</label><input id="mFecha" type="date">
+          <span class="form-hint">Fecha en que ocurrió el movimiento.</span>
+        </div>
+        <div class="form-group form-full">
+          <label>Descripción</label><input id="mDesc" placeholder="Ej: Compra a proveedor, consumo en orden O005...">
+          <span class="form-hint">Opcional. Motivo o referencia del movimiento.</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalMov')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarMovimiento()">Registrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal editar movimiento -->
+<div class="modal-overlay" id="modalEditMov">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header"><h3>Editar movimiento</h3><button class="modal-close" onclick="closeModal('modalEditMov')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group" style="display:none"><input id="emId"></div>
+        <div class="form-group">
+          <label>Tipo *</label>
+          <select id="emTipo"><option>ENTRADA</option><option>SALIDA</option></select>
+          <span class="form-hint">ENTRADA suma existencia. SALIDA la reduce.</span>
+        </div>
+        <div class="form-group">
+          <label>Cantidad *</label><input id="emCantidad" type="number" min="1">
+        </div>
+        <div class="form-group">
+          <label>Fecha *</label><input id="emFecha" type="date">
+        </div>
+        <div class="form-group form-full">
+          <label>Descripción</label><input id="emDesc" placeholder="Motivo o referencia...">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalEditMov')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEditMov()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/gridjs/dist/gridjs.umd.js"></script>
+<script src="app.js"></script>
+<script>
+async function nuevoMovimiento() {
+  document.getElementById('mId').value = await nextId('/api/inventario', 'INV');
+  openModal('modalMov');
+}
+
+let _chartMovs = null, _chartTipo = null;
+let _allRows = [];
+let _gridInv = null;
+
+function filtrarGrid(tipo) {
+  const filtered = tipo ? _allRows.filter(r => r.TIPO_MOVIMIENTO === tipo) : _allRows;
+  const label = document.getElementById('filtroLabel');
+  label.textContent = tipo ? `— ${tipo}S (${filtered.length})` : '';
+  const data = filtered.map(r => [
+    r.ID_MOVIMIENTO, r.NOMBRE_PRODUCTO, r.TIPO_MOVIMIENTO,
+    r.CANTIDAD, r.FECHA_MOVIMIENTO, r.DESCRIPCION||'—',
+    r.ID_MOVIMIENTO  // actions key
+  ]);
+  if (_gridInv) { _gridInv.updateConfig({ data }).forceRender(); return; }
+  _gridInv = new gridjs.Grid({
+    columns: [
+      {name:'ID'}, {name:'Producto'},
+      { name:'Tipo', formatter: cell => gridjs.html(badgeEstado(cell)) },
+      {name:'Cantidad'}, {name:'Fecha'}, {name:'Descripción'},
+      { name:'Acciones', sort:false, formatter: cell => gridjs.html(
+        `<button class="btn btn-info btn-sm" onclick="abrirEditMov('${cell}')">Editar</button>`
+      )}
+    ],
+    data, search:true, sort:true, pagination:{limit:15},
+    language:{search:{placeholder:'Buscar movimiento...'},pagination:{previous:'‹',next:'›',navigate:(p,pp)=>`Pág ${p} de ${pp}`,page:p=>`Pág ${p}`,showing:'Mostrando',of:'de',to:'a',results:'resultados'},loading:'Cargando...',noRecordsFound:'Sin resultados',error:'Error'}
+  }).render(document.getElementById('grid-inventario'));
+}
+
+async function loadInventario() {
+  const rows = await apiFetch('/api/inventario');
+  _allRows = rows;
+
+  // ── Stat cards ──────────────────────────────────────────────
+  const entradas     = rows.filter(r => r.TIPO_MOVIMIENTO === 'ENTRADA');
+  const salidas      = rows.filter(r => r.TIPO_MOVIMIENTO === 'SALIDA');
+  const totalEntrada = entradas.reduce((s, r) => s + Number(r.CANTIDAD), 0);
+  const totalSalida  = salidas.reduce((s, r) => s + Number(r.CANTIDAD), 0);
+  document.getElementById('statsInv').innerHTML = `
+    <div class="stat-card"><div class="value">${rows.length}</div><div class="label">Total movimientos</div></div>
+    <div class="stat-card accent"><div class="value">${entradas.length}</div><div class="label">Entradas</div></div>
+    <div class="stat-card danger"><div class="value">${salidas.length}</div><div class="label">Salidas</div></div>
+    <div class="stat-card"><div class="value">${totalEntrada - totalSalida}</div><div class="label">Unidades netas</div></div>
+  `;
+
+  // ── Entradas vs Salidas por producto (grouped bar) ──────────
+  const productos = [...new Set(rows.map(r => r.NOMBRE_PRODUCTO))];
+  const labsProd  = productos.map(p => p.length > 12 ? p.slice(0,12)+'…' : p);
+  const dataEnt   = productos.map(p => rows.filter(r => r.NOMBRE_PRODUCTO === p && r.TIPO_MOVIMIENTO === 'ENTRADA').reduce((s,r)=>s+Number(r.CANTIDAD),0));
+  const dataSal   = productos.map(p => rows.filter(r => r.NOMBRE_PRODUCTO === p && r.TIPO_MOVIMIENTO === 'SALIDA').reduce((s,r)=>s+Number(r.CANTIDAD),0));
+  if (_chartMovs) _chartMovs.destroy();
+  _chartMovs = new Chart(document.getElementById('chartMovs'), {
+    type: 'bar',
+    data: { labels: labsProd, datasets: [
+      { label: 'Entradas', data: dataEnt, backgroundColor: '#16a34a', borderRadius: 4, borderSkipped: false },
+      { label: 'Salidas',  data: dataSal, backgroundColor: '#dc2626', borderRadius: 4, borderSkipped: false }
+    ]},
+    options: { maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { family:'Inter', size:12 }, boxWidth:12 }}},
+      scales: { x: { ticks: { font: { family:'Inter', size:11 }}, grid: { display:false }}, y: { ticks: { font: { family:'Inter', size:11 }}, grid: { color:'#f0f2f5' }}}
+    }
+  });
+
+  // ── Donut: tipo de movimiento (clickable filter) — fixed: now calls filtrarGrid ─
+  if (_chartTipo) _chartTipo.destroy();
+  _chartTipo = new Chart(document.getElementById('chartTipo'), {
+    type: 'doughnut',
+    data: { labels: ['Entradas','Salidas'], datasets: [{ data: [entradas.length, salidas.length],
+      backgroundColor: ['#16a34a','#dc2626'], borderWidth: 0, hoverOffset: 6 }]},
+    options: { maintainAspectRatio: false, cutout: '65%',
+      onClick: (_, elements) => {
+        if (!elements.length) {
+          filtrarGrid(null);
+          document.getElementById('selFiltroTipo').value = '';
+          return;
+        }
+        const tipo = ['ENTRADA','SALIDA'][elements[0].index];
+        filtrarGrid(tipo);
+        document.getElementById('selFiltroTipo').value = tipo;
+      },
+      plugins: { legend: { position: 'bottom', labels: { font: { family:'Inter', size:12 }, boxWidth:12 }},
+                 tooltip: { callbacks: { footer: ()=>['Haz clic para filtrar la tabla'] }}}
+    }
+  });
+
+  // ── Render grid with all rows ───────────────────────────────
+  filtrarGrid(null);
+}
+
+async function loadProductosDropdown() {
+  const rows = await apiFetch('/api/productos');
+  const sel = document.getElementById('mProducto');
+  rows.forEach(r => sel.innerHTML += `<option value="${r.ID_PRODUCTO}">${r.NOMBRE_PRODUCTO}</option>`);
+  document.getElementById('mFecha').value = new Date().toISOString().split('T')[0];
+}
+
+async function guardarMovimiento() {
+  const body = {
+    id_movimiento: document.getElementById('mId').value.trim(),
+    id_producto: document.getElementById('mProducto').value,
+    tipo_movimiento: document.getElementById('mTipo').value,
+    cantidad: document.getElementById('mCantidad').value,
+    fecha_movimiento: document.getElementById('mFecha').value,
+    descripcion: document.getElementById('mDesc').value.trim()
+  };
+  try {
+    await apiFetch('/api/inventario', { method:'POST', body: JSON.stringify(body) });
+    toast('Movimiento registrado','success'); closeModal('modalMov'); loadInventario();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+function abrirEditMov(id) {
+  const r = _allRows.find(x => x.ID_MOVIMIENTO === id);
+  if (!r) return;
+  document.getElementById('emId').value      = id;
+  document.getElementById('emTipo').value    = r.TIPO_MOVIMIENTO;
+  document.getElementById('emCantidad').value = r.CANTIDAD;
+  document.getElementById('emFecha').value   = r.FECHA_MOVIMIENTO || '';
+  document.getElementById('emDesc').value    = r.DESCRIPCION || '';
+  openModal('modalEditMov');
+}
+
+async function guardarEditMov() {
+  const id = document.getElementById('emId').value;
+  const body = {
+    tipo_movimiento:  document.getElementById('emTipo').value,
+    cantidad:         document.getElementById('emCantidad').value,
+    fecha_movimiento: document.getElementById('emFecha').value,
+    descripcion:      document.getElementById('emDesc').value.trim()
+  };
+  try {
+    await apiFetch(`/api/inventario/${id}`, { method:'PUT', body: JSON.stringify(body) });
+    toast('Movimiento actualizado', 'success');
+    closeModal('modalEditMov');
+    loadInventario();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+loadProductosDropdown();
+loadInventario();
+</script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lubricentro – Auditoría</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridjs/dist/theme/mermaid.min.css">
+</head>
+<body>
+<aside class="sidebar">
+  <div class="sidebar-logo"><h2>Lubricentro</h2></div>
+  <nav>
+    <div class="section-title">Principal</div>
+    <a href="index.html">Dashboard</a>
+    <div class="section-title">Operaciones</div>
+    <a href="clientes.html">Clientes</a>
+    <a href="vehiculos.html">Vehículos</a>
+    <a href="citas.html">Citas</a>
+    <a href="ordenes.html">Órdenes</a>
+    <a href="servicios.html">Servicios</a>
+    <div class="section-title">Inventario</div>
+    <a href="productos.html">Productos</a>
+    <a href="inventario.html">Inventario</a>
+    <div class="section-title">Finanzas</div>
+    <a href="facturas.html">Facturas</a>
+    <a href="pagos.html">Pagos</a>
+    <div class="section-title">Sistema</div>
+    <a href="usuarios.html">Usuarios</a>
+    <a href="auditoria.html">Auditoría</a>
+  </nav>
+</aside>
+<div class="main">
+  <div class="topbar">
+    <div><h1>Auditoría del sistema</h1><div class="subtitle">Registro automático de cambios en la base de datos (triggers)</div></div>
+    <button class="btn btn-outline" onclick="load()">↺ Actualizar</button>
+  </div>
+  <div class="content">
+    <div class="panel">
+      <div class="panel-header"><h3>Registros de auditoría</h3></div>
+      <div class="panel-body" id="grid-auditoria"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/gridjs/dist/gridjs.umd.js"></script>
+<script src="app.js"></script>
+<script>
+let _grid = null;
+const _accionBadge = { 'INSERT':'badge-success', 'UPDATE':'badge-warning', 'DELETE':'badge-danger' };
+
+async function load() {
+  const rows = await apiFetch('/api/auditoria');
+  const data = rows.map(r => [r.ID_AUDITORIA, r.TABLA_AFECTADA, r.ACCION, r.DESCRIPCION||'', r.FECHA_REGISTRO, r.USUARIO_BD]);
+  if (_grid) { _grid.updateConfig({ data }).forceRender(); return; }
+  _grid = new gridjs.Grid({
+    columns: [
+      {name:'#'}, {name:'Tabla'},
+      { name:'Acción', formatter: cell => gridjs.html(`<span class="badge ${_accionBadge[cell]||'badge-muted'}">${cell}</span>`) },
+      {name:'Descripción'}, {name:'Fecha'}, {name:'Usuario BD'}
+    ],
+    data, search:true, sort:true, pagination:{limit:20},
+    language:{search:{placeholder:'Buscar en auditoría...'},pagination:{previous:'‹',next:'›',navigate:(p,pp)=>`Pág ${p} de ${pp}`,page:p=>`Pág ${p}`,showing:'Mostrando',of:'de',to:'a',results:'resultados'},loading:'Cargando...',noRecordsFound:'Sin resultados',error:'Error'}
+  }).render(document.getElementById('grid-auditoria'));
+}
+
+load();
+</script>
+</body>
+</html>

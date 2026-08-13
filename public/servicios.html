@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lubricentro – Servicios</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridjs/dist/theme/mermaid.min.css">
+</head>
+<body>
+<aside class="sidebar">
+  <div class="sidebar-logo"><h2>Lubricentro</h2></div>
+  <nav>
+    <div class="section-title">Principal</div>
+    <a href="index.html">Dashboard</a>
+    <div class="section-title">Operaciones</div>
+    <a href="clientes.html">Clientes</a>
+    <a href="vehiculos.html">Vehículos</a>
+    <a href="citas.html">Citas</a>
+    <a href="ordenes.html">Órdenes</a>
+    <a href="servicios.html">Servicios</a>
+    <div class="section-title">Inventario</div>
+    <a href="productos.html">Productos</a>
+    <a href="inventario.html">Inventario</a>
+    <div class="section-title">Finanzas</div>
+    <a href="facturas.html">Facturas</a>
+    <a href="pagos.html">Pagos</a>
+    <div class="section-title">Sistema</div>
+    <a href="usuarios.html">Usuarios</a>
+    <a href="auditoria.html">Auditoría</a>
+  </nav>
+</aside>
+<div class="main">
+  <div class="topbar">
+    <div><h1>Servicios</h1><div class="subtitle">Catálogo de servicios del lubricentro</div></div>
+    <button class="btn btn-primary" onclick="nuevoServicio()">+ Nuevo servicio</button>
+  </div>
+  <div class="content">
+    <div class="panel">
+      <div class="panel-header"><h3>Lista de servicios</h3></div>
+      <div class="panel-body" id="grid-servicios"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-s">
+  <div class="modal">
+    <div class="modal-header"><h3 id="modal-s-title">Nuevo servicio</h3><button class="modal-close" onclick="closeModal('modal-s');resetServicioForm()">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group" style="display:none"><label>ID Servicio</label><input id="f-id"></div>
+        <div class="form-group">
+          <label>Precio Base (₡) *</label><input id="f-precio" type="number" min="0" step="0.01" placeholder="0.00">
+          <span class="form-hint">Precio sin IVA en colones costarricenses (₡).</span>
+        </div>
+        <div class="form-group form-full">
+          <label>Nombre del Servicio *</label><input id="f-nombre" placeholder="Ej: Cambio de aceite 5W-30">
+          <span class="form-hint">Nombre descriptivo y único del servicio.</span>
+        </div>
+        <div class="form-group">
+          <label>Duración estimada (min) *</label><input id="f-dur" type="number" min="1" placeholder="60">
+          <span class="form-hint">Tiempo estimado en minutos para completar el servicio.</span>
+        </div>
+        <div class="form-group form-full">
+          <label>Descripción</label><input id="f-desc" placeholder="Descripción detallada del servicio...">
+          <span class="form-hint">Opcional. Detalle qué incluye el servicio.</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-s');resetServicioForm()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardar()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/gridjs/dist/gridjs.umd.js"></script>
+<script src="app.js"></script>
+<script>
+let editServicioId = null;
+let _grid = null;
+let _serviciosCache = [];
+
+function resetServicioForm() {
+  editServicioId = null;
+  document.getElementById('modal-s-title').textContent = 'Nuevo servicio';
+  ['f-id','f-nombre','f-desc','f-precio','f-dur'].forEach(i => { document.getElementById(i).value = ''; document.getElementById(i).disabled = false; });
+}
+
+async function nuevoServicio() {
+  resetServicioForm();
+  document.getElementById('f-id').value = await nextId('/api/servicios', 'S');
+  openModal('modal-s');
+}
+
+function editarServicio(id) {
+  const r = _serviciosCache.find(x => x.ID_SERVICIO === id);
+  if (!r) return;
+  editServicioId = id;
+  document.getElementById('modal-s-title').textContent = 'Editar servicio';
+  document.getElementById('f-id').value     = id; document.getElementById('f-id').disabled = true;
+  document.getElementById('f-nombre').value = r.NOMBRE_SERVICIO;
+  document.getElementById('f-desc').value   = r.DESCRIPCION || '';
+  document.getElementById('f-precio').value = r.PRECIO_BASE;
+  document.getElementById('f-dur').value    = r.DURACION_ESTIMADA;
+  openModal('modal-s');
+}
+
+async function load() {
+  _serviciosCache = await apiFetch('/api/servicios');
+  const data = _serviciosCache.map(r => [r.ID_SERVICIO, r.NOMBRE_SERVICIO, r.DESCRIPCION||'', fmtCRC(r.PRECIO_BASE), r.DURACION_ESTIMADA, r.ID_SERVICIO]);
+  if (_grid) { _grid.updateConfig({ data }).forceRender(); return; }
+  _grid = new gridjs.Grid({
+    columns: [
+      {name:'ID'}, {name:'Nombre'}, {name:'Descripción'},
+      {name:'Precio Base'}, {name:'Duración (min)'},
+      { name:'Acciones', sort:false, formatter: cell => gridjs.html(
+        isAdmin()
+          ? `<button class="btn btn-info btn-sm" onclick="editarServicio('${cell}')">Editar</button>`
+          : `<span style="color:#9ca3af;font-size:12px">—</span>`
+      )}
+    ],
+    data, search:true, sort:true, pagination:{limit:15},
+    language:{search:{placeholder:'Buscar servicio...'},pagination:{previous:'‹',next:'›',navigate:(p,pp)=>`Pág ${p} de ${pp}`,page:p=>`Pág ${p}`,showing:'Mostrando',of:'de',to:'a',results:'resultados'},loading:'Cargando...',noRecordsFound:'Sin resultados',error:'Error'}
+  }).render(document.getElementById('grid-servicios'));
+}
+
+async function guardar() {
+  if (editServicioId && !isAdmin()) {
+    toast('Solo el Administrador puede editar servicios.', 'error');
+    return;
+  }
+  const body = { id_servicio: document.getElementById('f-id').value, nombre_servicio: document.getElementById('f-nombre').value, descripcion: document.getElementById('f-desc').value, precio_base: document.getElementById('f-precio').value, duracion_estimada: document.getElementById('f-dur').value };
+  try {
+    if (editServicioId) {
+      await apiFetch(`/api/servicios/${editServicioId}`, { method:'PUT', body:JSON.stringify(body) });
+      toast('Servicio actualizado','success');
+    } else {
+      await apiFetch('/api/servicios', { method:'POST', body:JSON.stringify(body) });
+      toast('Servicio creado','success');
+    }
+    closeModal('modal-s'); resetServicioForm(); load();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+load();
+</script>
+</body>
+</html>

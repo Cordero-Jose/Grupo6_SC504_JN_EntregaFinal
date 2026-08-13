@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Órdenes de Servicio — Lubricentro</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridjs/dist/theme/mermaid.min.css">
+</head>
+<body>
+<aside class="sidebar">
+  <div class="sidebar-logo"><h2>Lubricentro</h2></div>
+  <nav>
+    <div class="section-title">Principal</div>
+    <a href="index.html">Dashboard</a>
+    <div class="section-title">Operaciones</div>
+    <a href="clientes.html">Clientes</a>
+    <a href="vehiculos.html">Vehículos</a>
+    <a href="citas.html">Citas</a>
+    <a href="ordenes.html">Órdenes</a>
+    <a href="servicios.html">Servicios</a>
+    <div class="section-title">Inventario</div>
+    <a href="productos.html">Productos</a>
+    <a href="inventario.html">Inventario</a>
+    <div class="section-title">Finanzas</div>
+    <a href="facturas.html">Facturas</a>
+    <a href="pagos.html">Pagos</a>
+    <div class="section-title">Sistema</div>
+    <a href="usuarios.html">Usuarios</a>
+    <a href="auditoria.html">Auditoría</a>
+  </nav>
+</aside>
+<div class="main">
+  <div class="topbar">
+    <div><h1>Órdenes de Servicio</h1><div class="subtitle">Gestión de órdenes y servicios realizados</div></div>
+    <button class="btn btn-primary" onclick="nuevaOrden()">+ Nueva Orden</button>
+  </div>
+  <div class="content">
+
+    <!-- ── Kanban Board ── -->
+    <div class="kanban-wrap">
+      <h3>Tablero Kanban — arrastra las órdenes para cambiar su estado</h3>
+      <div class="kanban-board" id="kanban">
+        <div class="kanban-col" data-estado="ABIERTA">
+          <div class="kanban-col-header">
+            <span class="kanban-col-title">Abierta</span>
+            <span class="kanban-col-count" id="kc-ABIERTA">0</span>
+          </div>
+        </div>
+        <div class="kanban-col" data-estado="EN_PROCESO">
+          <div class="kanban-col-header">
+            <span class="kanban-col-title">En proceso</span>
+            <span class="kanban-col-count" id="kc-EN_PROCESO">0</span>
+          </div>
+        </div>
+        <div class="kanban-col" data-estado="FINALIZADA">
+          <div class="kanban-col-header">
+            <span class="kanban-col-title">Finalizada</span>
+            <span class="kanban-col-count" id="kc-FINALIZADA">0</span>
+          </div>
+        </div>
+        <div class="kanban-col" data-estado="CANCELADA">
+          <div class="kanban-col-header">
+            <span class="kanban-col-title">Cancelada</span>
+            <span class="kanban-col-count" id="kc-CANCELADA">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Grid.js table ── -->
+    <div class="panel">
+      <div class="panel-header"><h3>Lista de Órdenes</h3></div>
+      <div class="panel-body" id="grid-ordenes"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal nueva orden -->
+<div class="modal-overlay" id="modalOrden">
+  <div class="modal">
+    <div class="modal-header"><h3>Nueva Orden de Servicio</h3><button class="modal-close" onclick="closeModal('modalOrden')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group" style="display:none"><label>ID Orden *</label><input id="oId"></div>
+        <div class="form-group">
+          <label>Cita *</label>
+          <select id="oCita"><option value="">— seleccione —</option></select>
+          <span class="form-hint">Solo citas sin orden asignada aún.</span>
+        </div>
+        <div class="form-group">
+          <label>Mecánico/Usuario *</label>
+          <select id="oUsuario"><option value="">— seleccione —</option></select>
+          <span class="form-hint">Técnico responsable de ejecutar la orden.</span>
+        </div>
+        <div class="form-group">
+          <label>Fecha Apertura *</label><input id="oFecha" type="date">
+          <span class="form-hint">Fecha en que se abre formalmente la orden.</span>
+        </div>
+        <div class="form-group">
+          <label>Estado</label>
+          <select id="oEstado"><option>ABIERTA</option><option>EN_PROCESO</option><option>FINALIZADA</option><option>CANCELADA</option></select>
+          <span class="form-hint">Estado inicial recomendado: ABIERTA.</span>
+        </div>
+        <div class="form-group form-full">
+          <label>Observaciones</label><input id="oObs" placeholder="Diagnóstico inicial, piezas necesarias...">
+          <span class="form-hint">Opcional. Notas técnicas sobre la orden.</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalOrden')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarOrden()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal editar orden -->
+<div class="modal-overlay" id="modalEstOrden">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header"><h3>Editar orden</h3><button class="modal-close" onclick="closeModal('modalEstOrden')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Estado *</label>
+          <select id="oEstValor"><option>ABIERTA</option><option>EN_PROCESO</option><option>FINALIZADA</option><option>CANCELADA</option></select>
+          <span class="form-hint">Estado actual de la orden de servicio.</span>
+        </div>
+        <div class="form-group form-full">
+          <label>Observaciones</label>
+          <input id="oObsEdit" placeholder="Diagnóstico, notas técnicas...">
+          <span class="form-hint">Notas o diagnóstico asociado a la orden.</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modalEstOrden')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveEstOrden()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/gridjs/dist/gridjs.umd.js"></script>
+<script src="app.js"></script>
+<script>
+let oEstId = null;
+let _allOrdenes = [];
+let _grid = null;
+
+// ── Kanban ────────────────────────────────────────────────────────────────
+function buildKanban(rows) {
+  const cols = document.querySelectorAll('.kanban-col');
+  cols.forEach(col => {
+    Array.from(col.children).forEach(ch => {
+      if (!ch.classList.contains('kanban-col-header')) ch.remove();
+    });
+  });
+  ['ABIERTA','EN_PROCESO','FINALIZADA','CANCELADA'].forEach(est => {
+    const col   = document.querySelector(`.kanban-col[data-estado="${est}"]`);
+    const cards = rows.filter(r => r.ESTADO === est);
+    document.getElementById('kc-'+est).textContent = cards.length;
+    cards.forEach(r => {
+      const card = document.createElement('div');
+      card.className  = 'kanban-card';
+      card.draggable  = true;
+      card.dataset.id = r.ID_ORDEN;
+      card.innerHTML  = `
+        <div class="kanban-card-id">${r.ID_ORDEN}</div>
+        <div class="kanban-card-name">${r.CLIENTE}</div>
+        <div class="kanban-card-sub">${r.PLACA} · ${r.MECANICO}</div>`;
+      card.addEventListener('dragstart', onDragStart);
+      card.addEventListener('dragend',   onDragEnd);
+      col.appendChild(card);
+    });
+  });
+  cols.forEach(col => {
+    col.addEventListener('dragover',  onDragOver);
+    col.addEventListener('dragleave', onDragLeave);
+    col.addEventListener('drop',      onDrop);
+  });
+}
+
+let _draggingId = null;
+function onDragStart(e) { _draggingId = e.currentTarget.dataset.id; e.currentTarget.classList.add('dragging'); }
+function onDragEnd(e)   { e.currentTarget.classList.remove('dragging'); }
+function onDragOver(e)  { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+function onDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+
+async function onDrop(e) {
+  e.preventDefault();
+  const col = e.currentTarget;
+  col.classList.remove('drag-over');
+  const nuevoEst = col.dataset.estado;
+  const old = _allOrdenes.find(r => r.ID_ORDEN === _draggingId);
+  if (!old || old.ESTADO === nuevoEst) return;
+  try {
+    await apiFetch(`/api/ordenes/${_draggingId}`, { method:'PUT', body: JSON.stringify({ estado: nuevoEst }) });
+    toast(`Orden ${_draggingId} → ${nuevoEst}`, 'success');
+    await loadOrdenes();
+  } catch(err) { toast(err.message,'error'); }
+}
+
+// ── Grid.js table ─────────────────────────────────────────────────────────
+function buildGrid(rows) {
+  const data = rows.map(r => [
+    r.ID_ORDEN, r.CLIENTE, r.PLACA, r.MECANICO,
+    r.FECHA_APERTURA, r.ESTADO, r.OBSERVACIONES || '—', r.ID_ORDEN
+  ]);
+
+  if (_grid) { _grid.updateConfig({ data }).forceRender(); return; }
+
+  _grid = new gridjs.Grid({
+    columns: [
+      { id: 'id',    name: 'ID Orden' },
+      { id: 'cli',   name: 'Cliente' },
+      { id: 'placa', name: 'Placa' },
+      { id: 'mec',   name: 'Mecánico' },
+      { id: 'fecha', name: 'Fecha' },
+      { id: 'est',   name: 'Estado',
+        formatter: cell => gridjs.html(badgeEstado(cell)) },
+      { id: 'obs',   name: 'Observaciones' },
+      { id: 'act',   name: 'Acciones', sort: false,
+        formatter: cell => gridjs.html(
+          `<div class="flex-gap">
+            <button class="btn btn-info btn-sm"   onclick="openEstOrden('${cell}')">Editar</button>
+            <button class="btn btn-danger btn-sm" onclick="delOrden('${cell}')">Eliminar</button>
+          </div>`) }
+    ],
+    data,
+    search: true,
+    sort:   true,
+    pagination: { limit: 15 },
+    language: {
+      search: { placeholder: 'Buscar orden...' },
+      pagination: { previous: '‹', next: '›', navigate: (p,pp) => `Pág ${p} de ${pp}`, page: p=>`Pág ${p}`, showing: 'Mostrando', of: 'de', to: 'a', results: 'resultados' },
+      loading: 'Cargando...',
+      noRecordsFound: 'Sin resultados',
+      error: 'Error al cargar datos'
+    }
+  }).render(document.getElementById('grid-ordenes'));
+}
+
+async function loadOrdenes() {
+  const rows = await apiFetch('/api/ordenes');
+  _allOrdenes = rows;
+  buildKanban(rows);
+  buildGrid(rows);
+}
+
+async function loadDropdowns() {
+  const [citas, usuarios] = await Promise.all([apiFetch('/api/citas'), apiFetch('/api/usuarios')]);
+  const sc = document.getElementById('oCita');
+  citas.filter(c=>!c.ID_ORDEN).forEach(c => sc.innerHTML += `<option value="${c.ID_CITA}">${c.ID_CITA} — ${c.CLIENTE} (${c.PLACA})</option>`);
+  const su = document.getElementById('oUsuario');
+  usuarios.filter(u=>u.ESTADO==='ACTIVO').forEach(u => su.innerHTML += `<option value="${u.ID_USUARIO}">${u.NOMBRE} (${u.NOMBRE_ROL})</option>`);
+  document.getElementById('oFecha').value = new Date().toISOString().split('T')[0];
+}
+
+async function nuevaOrden() {
+  document.getElementById('oId').value = await nextId('/api/ordenes', 'O');
+  openModal('modalOrden');
+}
+
+async function guardarOrden() {
+  const body = { id_orden: document.getElementById('oId').value.trim(), id_cita: document.getElementById('oCita').value, id_usuario: document.getElementById('oUsuario').value, fecha_apertura: document.getElementById('oFecha').value, estado: document.getElementById('oEstado').value, observaciones: document.getElementById('oObs').value.trim() };
+  try { await apiFetch('/api/ordenes', { method:'POST', body: JSON.stringify(body) }); toast('Orden creada','success'); closeModal('modalOrden'); loadOrdenes(); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+function openEstOrden(id) {
+  oEstId = id;
+  const row = _allOrdenes.find(r => r.ID_ORDEN === id);
+  if (row) {
+    document.getElementById('oEstValor').value = row.ESTADO;
+    document.getElementById('oObsEdit').value  = row.OBSERVACIONES || '';
+  }
+  openModal('modalEstOrden');
+}
+async function saveEstOrden() {
+  const body = { estado: document.getElementById('oEstValor').value, observaciones: document.getElementById('oObsEdit').value };
+  try { await apiFetch('/api/ordenes/'+oEstId, { method:'PUT', body: JSON.stringify(body) }); toast('Orden actualizada','success'); closeModal('modalEstOrden'); loadOrdenes(); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+async function delOrden(id) {
+  confirmDialog({
+    title: 'Eliminar orden',
+    message: `¿Estás seguro de que deseas eliminar la orden ${id}?`,
+    confirmText: 'Eliminar', danger: true,
+    onConfirm: async () => {
+      try { await apiFetch('/api/ordenes/'+id,{method:'DELETE'}); toast('Orden eliminada','success'); loadOrdenes(); }
+      catch(e) { toast(e.message,'error'); }
+    }
+  });
+}
+
+loadDropdowns();
+loadOrdenes();
+</script>
+</body>
+</html>

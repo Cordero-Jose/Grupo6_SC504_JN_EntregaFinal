@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lubricentro – Usuarios</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridjs/dist/theme/mermaid.min.css">
+</head>
+<body>
+<aside class="sidebar">
+  <div class="sidebar-logo"><h2>Lubricentro</h2></div>
+  <nav>
+    <div class="section-title">Principal</div>
+    <a href="index.html">Dashboard</a>
+    <div class="section-title">Operaciones</div>
+    <a href="clientes.html">Clientes</a>
+    <a href="vehiculos.html">Vehículos</a>
+    <a href="citas.html">Citas</a>
+    <a href="ordenes.html">Órdenes</a>
+    <a href="servicios.html">Servicios</a>
+    <div class="section-title">Inventario</div>
+    <a href="productos.html">Productos</a>
+    <a href="inventario.html">Inventario</a>
+    <div class="section-title">Finanzas</div>
+    <a href="facturas.html">Facturas</a>
+    <a href="pagos.html">Pagos</a>
+    <div class="section-title">Sistema</div>
+    <a href="usuarios.html">Usuarios</a>
+    <a href="auditoria.html">Auditoría</a>
+  </nav>
+</aside>
+<div class="main">
+  <div class="topbar">
+    <div><h1>Usuarios del sistema</h1><div class="subtitle">Gestión de usuarios y roles</div></div>
+    <button class="btn btn-primary" onclick="nuevoUsuario()">+ Nuevo usuario</button>
+  </div>
+  <div class="content">
+    <div class="panel">
+      <div class="panel-header"><h3>Usuarios registrados</h3></div>
+      <div class="panel-body" id="grid-usuarios"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal editar usuario -->
+<div class="modal-overlay" id="modal-edit-u">
+  <div class="modal">
+    <div class="modal-header"><h3>Editar usuario</h3><button class="modal-close" onclick="closeModal('modal-edit-u')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group" style="display:none"><input id="eu-id"></div>
+        <div class="form-group">
+          <label>Rol *</label><select id="eu-rol"></select>
+        </div>
+        <div class="form-group form-full">
+          <label>Nombre completo *</label><input id="eu-nombre">
+        </div>
+        <div class="form-group">
+          <label>Correo *</label><input id="eu-correo" type="email">
+        </div>
+        <div class="form-group">
+          <label>Estado</label>
+          <select id="eu-estado"><option>ACTIVO</option><option>INACTIVO</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-edit-u')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEditU()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-u">
+  <div class="modal">
+    <div class="modal-header"><h3>Nuevo usuario</h3><button class="modal-close" onclick="closeModal('modal-u')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group" style="display:none"><label>ID Usuario</label><input id="f-id"></div>
+        <div class="form-group">
+          <label>Rol *</label><select id="f-rol"></select>
+          <span class="form-hint">Rol que define los permisos del usuario en el sistema.</span>
+        </div>
+        <div class="form-group form-full">
+          <label>Nombre completo *</label><input id="f-nombre" placeholder="Ej: María González López">
+          <span class="form-hint">Nombre y apellidos del usuario.</span>
+        </div>
+        <div class="form-group">
+          <label>Correo *</label><input id="f-correo" type="email" placeholder="usuario@lubricentro.com">
+          <span class="form-hint">Correo electrónico único, se usará para iniciar sesión.</span>
+        </div>
+        <div class="form-group">
+          <label>Contraseña *</label><input id="f-pass" type="password" placeholder="Mínimo 8 caracteres">
+          <span class="form-hint">Mínimo 8 caracteres. Use letras, números y símbolos.</span>
+        </div>
+        <div class="form-group">
+          <label>Estado</label>
+          <select id="f-estado"><option>ACTIVO</option><option>INACTIVO</option></select>
+          <span class="form-hint">Los usuarios INACTIVOS no pueden acceder al sistema.</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-u')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardar()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/gridjs/dist/gridjs.umd.js"></script>
+<script src="app.js"></script>
+<script>
+let _grid = null;
+
+async function nuevoUsuario() {
+  document.getElementById('f-id').value = await nextId('/api/usuarios', 'U');
+  openModal('modal-u');
+}
+
+async function load() {
+  const rows = await apiFetch('/api/usuarios');
+  const data = rows.map(r => [r.ID_USUARIO, r.NOMBRE, r.NOMBRE_ROL, r.CORREO, r.ESTADO, r.ID_USUARIO+'|'+r.ESTADO]);
+  if (_grid) { _grid.updateConfig({ data }).forceRender(); return; }
+  _grid = new gridjs.Grid({
+    columns: [
+      {name:'ID'}, {name:'Nombre'}, {name:'Rol'}, {name:'Correo'},
+      { name:'Estado', formatter: cell => gridjs.html(badgeEstado(cell)) },
+      { name:'Acciones', sort:false, formatter: cell => {
+        const [id, estado] = cell.split('|');
+        const lbl = estado === 'ACTIVO' ? 'Desactivar' : 'Activar';
+        return gridjs.html(`<div class="flex-gap">
+          <button class="btn btn-info btn-sm"    onclick="abrirEditU('${id}')">Editar</button>
+          <button class="btn btn-warning btn-sm" onclick="toggleEstado('${id}','${estado}')">${lbl}</button>
+        </div>`);
+      }}
+    ],
+    data, search:true, sort:true, pagination:{limit:15},
+    language:{search:{placeholder:'Buscar usuario...'},pagination:{previous:'‹',next:'›',navigate:(p,pp)=>`Pág ${p} de ${pp}`,page:p=>`Pág ${p}`,showing:'Mostrando',of:'de',to:'a',results:'resultados'},loading:'Cargando...',noRecordsFound:'Sin resultados',error:'Error'}
+  }).render(document.getElementById('grid-usuarios'));
+}
+
+async function loadRoles() {
+  const roles = await apiFetch('/api/roles');
+  document.getElementById('f-rol').innerHTML = roles.map(r=>`<option value="${r.ID_ROL}">${r.NOMBRE_ROL}</option>`).join('');
+}
+
+async function guardar() {
+  const body = { id_usuario: document.getElementById('f-id').value, id_rol: document.getElementById('f-rol').value, nombre: document.getElementById('f-nombre').value, correo: document.getElementById('f-correo').value, contrasena: document.getElementById('f-pass').value, estado: document.getElementById('f-estado').value };
+  try { await apiFetch('/api/usuarios', { method:'POST', body:JSON.stringify(body) }); toast('Usuario creado','success'); closeModal('modal-u'); load(); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+async function abrirEditU(id) {
+  const r = await apiFetch('/api/usuarios/' + id);
+  document.getElementById('eu-id').value     = id;
+  document.getElementById('eu-nombre').value = r.NOMBRE;
+  document.getElementById('eu-correo').value = r.CORREO;
+  document.getElementById('eu-estado').value = r.ESTADO;
+  const roles = await apiFetch('/api/roles');
+  document.getElementById('eu-rol').innerHTML = roles.map(r => `<option value="${r.ID_ROL}">${r.NOMBRE_ROL}</option>`).join('');
+  document.getElementById('eu-rol').value = r.ID_ROL;
+  openModal('modal-edit-u');
+}
+
+async function guardarEditU() {
+  const id = document.getElementById('eu-id').value;
+  const body = { nombre: document.getElementById('eu-nombre').value, correo: document.getElementById('eu-correo').value, id_rol: document.getElementById('eu-rol').value, estado: document.getElementById('eu-estado').value };
+  try {
+    await apiFetch(`/api/usuarios/${id}`, { method:'PUT', body: JSON.stringify(body) });
+    toast('Usuario actualizado', 'success'); closeModal('modal-edit-u'); load();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function toggleEstado(id, estado) {
+  const nuevo = estado === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO';
+  try { await apiFetch(`/api/usuarios/${id}`, { method:'PUT', body:JSON.stringify({ estado: nuevo }) }); toast('Estado actualizado','success'); load(); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+loadRoles(); load();
+</script>
+</body>
+</html>

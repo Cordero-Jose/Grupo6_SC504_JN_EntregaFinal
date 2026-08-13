@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lubricentro – Clientes</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridjs/dist/theme/mermaid.min.css">
+</head>
+<body>
+<aside class="sidebar">
+  <div class="sidebar-logo"><h2>Lubricentro</h2></div>
+  <nav>
+    <div class="section-title">Principal</div>
+    <a href="index.html">Dashboard</a>
+    <div class="section-title">Operaciones</div>
+    <a href="clientes.html">Clientes</a>
+    <a href="vehiculos.html">Vehículos</a>
+    <a href="citas.html">Citas</a>
+    <a href="ordenes.html">Órdenes</a>
+    <a href="servicios.html">Servicios</a>
+    <div class="section-title">Inventario</div>
+    <a href="productos.html">Productos</a>
+    <a href="inventario.html">Inventario</a>
+    <div class="section-title">Finanzas</div>
+    <a href="facturas.html">Facturas</a>
+    <a href="pagos.html">Pagos</a>
+    <div class="section-title">Sistema</div>
+    <a href="usuarios.html">Usuarios</a>
+    <a href="auditoria.html">Auditoría</a>
+  </nav>
+</aside>
+<div class="main">
+  <div class="topbar">
+    <div><h1>Clientes</h1><div class="subtitle">Gestión de clientes registrados</div></div>
+    <button class="btn btn-primary" onclick="nuevoCliente()">+ Nuevo cliente</button>
+  </div>
+  <div class="content">
+    <div class="panel">
+      <div class="panel-header"><h3>Lista de clientes</h3></div>
+      <div class="panel-body" id="grid-clientes"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-cliente">
+  <div class="modal">
+    <div class="modal-header"><h3 id="modal-title">Nuevo cliente</h3><button class="modal-close" onclick="closeModal('modal-cliente');resetForm()">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group" style="display:none"><label>ID</label><input id="f-id"></div>
+        <div class="form-group">
+          <label>Nombre *</label>
+          <input id="f-nombre" placeholder="Ej: Juan Pérez Rodríguez">
+          <span class="form-hint">Nombre completo del cliente.</span>
+        </div>
+        <div class="form-group">
+          <label>Cédula *</label>
+          <input id="f-cedula" placeholder="112345678" maxlength="20">
+          <span class="form-hint">Solo números sin guiones ni espacios. Ej: 112345678</span>
+        </div>
+        <div class="form-group">
+          <label>Teléfono</label>
+          <input id="f-telefono" placeholder="88001234" maxlength="20">
+          <span class="form-hint">Solo números, 8 dígitos. Ej: 88001234</span>
+        </div>
+        <div class="form-group">
+          <label>Correo</label>
+          <input id="f-correo" type="email" placeholder="juan@correo.com">
+          <span class="form-hint">Dirección de correo electrónico válida.</span>
+        </div>
+        <div class="form-group form-full" style="position:relative">
+          <label>Dirección</label>
+          <input id="f-direccion" autocomplete="off" placeholder="Empiece a escribir la dirección...">
+          <ul id="dir-suggestions" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #d1d5db;border-radius:8px;z-index:300;list-style:none;margin:2px 0 0;padding:0;max-height:200px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,0.1)"></ul>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-cliente');resetForm()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardar()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/gridjs/dist/gridjs.umd.js"></script>
+<script src="app.js"></script>
+<script>
+let editId = null;
+let _grid = null;
+let _clientesCache = [];
+
+// ── OpenStreetMap Nominatim ────────────────────────────────────
+let _dirTimer = null;
+document.addEventListener('DOMContentLoaded', () => {
+  const inp = document.getElementById('f-direccion');
+  const ul  = document.getElementById('dir-suggestions');
+  if (!inp) return;
+  inp.addEventListener('input', () => {
+    clearTimeout(_dirTimer);
+    const q = inp.value.trim();
+    if (q.length < 4) { ul.style.display = 'none'; return; }
+    _dirTimer = setTimeout(async () => {
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=cr&limit=5&q=${encodeURIComponent(q)}`;
+        const res = await fetch(url, { headers: { 'Accept-Language': 'es' } });
+        const data = await res.json();
+        if (!data.length) { ul.style.display = 'none'; return; }
+        ul.innerHTML = data.map(d => `<li data-val="${d.display_name.replace(/"/g,'&quot;')}" style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #f4f5f7;line-height:1.4" onmousedown="pickDir(this)">${d.display_name}</li>`).join('');
+        ul.style.display = 'block';
+      } catch { ul.style.display = 'none'; }
+    }, 380);
+  });
+  inp.addEventListener('blur', () => setTimeout(() => { ul.style.display = 'none'; }, 200));
+});
+function pickDir(li) { document.getElementById('f-direccion').value = li.dataset.val; document.getElementById('dir-suggestions').style.display = 'none'; }
+
+// ── Helpers ───────────────────────────────────────────────────
+function maskCedula(ced) {
+  if (!ced || ced.length <= 2) return ced;
+  return '•'.repeat(ced.length - 2) + ced.slice(-2);
+}
+function toggleCedula(el) {
+  const real = el.dataset.real, masked = el.dataset.masked;
+  el.textContent = (el.textContent === masked) ? real : masked;
+}
+
+// ── Grid.js ───────────────────────────────────────────────────
+async function load() {
+  _clientesCache = await apiFetch('/api/clientes');
+  const data = _clientesCache.map(r => [
+    r.ID_CLIENTE, r.NOMBRE,
+    maskCedula(r.CEDULA) + '|' + r.CEDULA,
+    r.TELEFONO||'', r.CORREO||'', r.DIRECCION||'',
+    r.ID_CLIENTE
+  ]);
+  if (_grid) { _grid.updateConfig({ data }).forceRender(); return; }
+  _grid = new gridjs.Grid({
+    columns: [
+      { name:'ID' },
+      { name:'Nombre' },
+      { name:'Cédula', sort:false,
+        formatter: cell => {
+          const [masked, real] = cell.split('|');
+          return gridjs.html(`<span data-real="${real}" data-masked="${masked}" title="Clic para revelar" style="cursor:pointer;font-family:monospace;letter-spacing:.04em" onclick="toggleCedula(this)">${masked}</span>`);
+        }},
+      { name:'Teléfono' },
+      { name:'Correo' },
+      { name:'Dirección' },
+      { name:'Acciones', sort:false,
+        formatter: cell => gridjs.html(`<div class="flex-gap">
+          <button class="btn btn-warning btn-sm" onclick="editarById('${cell}')">Editar</button>
+          <button class="btn btn-danger btn-sm"  onclick="eliminar('${cell}')">Eliminar</button>
+        </div>`) }
+    ],
+    data, search:true, sort:true, pagination:{limit:15},
+    language:{search:{placeholder:'Buscar cliente...'},pagination:{previous:'‹',next:'›',navigate:(p,pp)=>`Pág ${p} de ${pp}`,page:p=>`Pág ${p}`,showing:'Mostrando',of:'de',to:'a',results:'resultados'},loading:'Cargando...',noRecordsFound:'Sin resultados',error:'Error'}
+  }).render(document.getElementById('grid-clientes'));
+}
+
+function editarById(id) {
+  const r = _clientesCache.find(x => x.ID_CLIENTE === id);
+  if (r) editar(r.ID_CLIENTE, r.NOMBRE, r.CEDULA, r.TELEFONO||'', r.CORREO||'', r.DIRECCION||'');
+}
+
+// ── CRUD ──────────────────────────────────────────────────────
+async function nuevoCliente() {
+  resetForm();
+  document.getElementById('f-id').value = await nextId('/api/clientes', 'C');
+  openModal('modal-cliente');
+}
+
+function editar(id,nombre,cedula,tel,correo,dir) {
+  editId = id;
+  document.getElementById('modal-title').textContent = 'Editar cliente';
+  document.getElementById('f-id').value = id; document.getElementById('f-id').disabled = true;
+  document.getElementById('f-nombre').value = nombre;
+  document.getElementById('f-cedula').value = cedula; document.getElementById('f-cedula').disabled = true;
+  document.getElementById('f-telefono').value = tel;
+  document.getElementById('f-correo').value = correo;
+  document.getElementById('f-direccion').value = dir;
+  openModal('modal-cliente');
+}
+
+function resetForm() {
+  editId = null;
+  document.getElementById('modal-title').textContent = 'Nuevo cliente';
+  ['f-id','f-nombre','f-cedula','f-telefono','f-correo','f-direccion'].forEach(id => {
+    document.getElementById(id).value = ''; document.getElementById(id).disabled = false;
+  });
+}
+
+async function guardar() {
+  const body = { id_cliente: document.getElementById('f-id').value, nombre: document.getElementById('f-nombre').value, cedula: document.getElementById('f-cedula').value, telefono: document.getElementById('f-telefono').value, correo: document.getElementById('f-correo').value, direccion: document.getElementById('f-direccion').value };
+  try {
+    if (editId) { await apiFetch(`/api/clientes/${editId}`, { method:'PUT', body:JSON.stringify(body) }); toast('Cliente actualizado','success'); }
+    else        { await apiFetch('/api/clientes', { method:'POST', body:JSON.stringify(body) }); toast('Cliente creado','success'); }
+    closeModal('modal-cliente'); resetForm(); load();
+  } catch(e) { toast(e.message,'error'); }
+}
+
+async function eliminar(id) {
+  confirmDialog({
+    title: 'Eliminar cliente',
+    message: `¿Estás seguro de que deseas eliminar el cliente ${id}?`,
+    confirmText: 'Eliminar', danger: true,
+    onConfirm: async () => {
+      try { await apiFetch(`/api/clientes/${id}`, { method:'DELETE' }); toast('Cliente eliminado','success'); load(); }
+      catch(e) { toast(e.message,'error'); }
+    }
+  });
+}
+
+load();
+</script>
+</body>
+</html>
