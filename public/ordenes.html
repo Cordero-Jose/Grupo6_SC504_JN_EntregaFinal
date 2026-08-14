@@ -12,6 +12,7 @@
   <nav>
     <div class="section-title">Principal</div>
     <a href="index.html">Dashboard</a>
+    <a href="atencion.html">Atencion al cliente</a>
     <div class="section-title">Operaciones</div>
     <a href="clientes.html">Clientes</a>
     <a href="vehiculos.html">Vehículos</a>
@@ -139,6 +140,45 @@
   </div>
 </div>
 
+<!-- Modal detalle orden (click on kanban card) -->
+<div class="modal-overlay" id="modalDetalleOrden">
+  <div class="modal" style="max-width:620px">
+    <div class="modal-header">
+      <div>
+        <h3 id="dord-title">Detalle de orden</h3>
+        <div style="font-size:12px;color:#6b7280;margin-top:2px" id="dord-sub"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modalDetalleOrden')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:24px;margin-bottom:16px;font-size:13px;flex-wrap:wrap" id="dord-meta"></div>
+      <h4 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#374151;margin:0 0 8px">Servicios</h4>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px">
+        <thead>
+          <tr style="background:#f7f8fa">
+            <th style="text-align:left;padding:7px 10px;font-weight:600">Servicio</th>
+            <th style="text-align:center;padding:7px 10px;font-weight:600">Cant.</th>
+            <th style="text-align:right;padding:7px 10px;font-weight:600">Precio unit.</th>
+            <th style="text-align:right;padding:7px 10px;font-weight:600">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody id="dord-srvs"></tbody>
+      </table>
+      <h4 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#374151;margin:0 0 8px">Productos utilizados</h4>
+      <div id="dord-prods" style="font-size:13px;margin-bottom:16px"></div>
+      <div style="background:#f7f8fa;border-radius:8px;padding:12px 16px;font-size:13px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Subtotal</span><span id="dord-sub2"></span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;color:#6b7280"><span>IVA (13%)</span><span id="dord-iva"></span></div>
+        <div style="display:flex;justify-content:space-between;font-weight:700;font-size:15px"><span>Total estimado</span><span id="dord-total" style="color:#f97316"></span></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="openEstOrden(_detalleOrdenId)">Editar estado</button>
+      <button class="btn btn-outline" onclick="closeModal('modalDetalleOrden')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 <script src="https://cdn.jsdelivr.net/npm/gridjs/dist/gridjs.umd.js"></script>
 <script src="app.js"></script>
@@ -146,6 +186,7 @@
 let oEstId = null;
 let _allOrdenes = [];
 let _grid = null;
+let _detalleOrdenId = null;
 
 // ── Kanban ────────────────────────────────────────────────────────────────
 function buildKanban(rows) {
@@ -167,9 +208,11 @@ function buildKanban(rows) {
       card.innerHTML  = `
         <div class="kanban-card-id">${r.ID_ORDEN}</div>
         <div class="kanban-card-name">${r.CLIENTE}</div>
-        <div class="kanban-card-sub">${r.PLACA} · ${r.MECANICO}</div>`;
+        <div class="kanban-card-sub">${r.PLACA} · ${r.MECANICO}</div>
+        <div style="margin-top:6px"><span class="badge ${r.ESTADO==='ABIERTA'?'badge-warning':r.ESTADO==='EN_PROCESO'?'badge-info':r.ESTADO==='FINALIZADA'?'badge-success':'badge-danger'}" style="font-size:10px">${r.ESTADO}</span></div>`;
       card.addEventListener('dragstart', onDragStart);
       card.addEventListener('dragend',   onDragEnd);
+      card.addEventListener('click',     () => verDetalleOrden(r.ID_ORDEN));
       col.appendChild(card);
     });
   });
@@ -280,6 +323,46 @@ async function saveEstOrden() {
   const body = { estado: document.getElementById('oEstValor').value, observaciones: document.getElementById('oObsEdit').value };
   try { await apiFetch('/api/ordenes/'+oEstId, { method:'PUT', body: JSON.stringify(body) }); toast('Orden actualizada','success'); closeModal('modalEstOrden'); loadOrdenes(); }
   catch(e) { toast(e.message,'error'); }
+}
+
+async function verDetalleOrden(ordenId) {
+  _detalleOrdenId = ordenId;
+  const row = _allOrdenes.find(r => r.ID_ORDEN === ordenId);
+  document.getElementById('dord-title').textContent = `Orden ${ordenId}`;
+  document.getElementById('dord-sub').textContent   = row ? `${row.CLIENTE} · ${row.PLACA} · ${row.MECANICO}` : '';
+  document.getElementById('dord-meta').innerHTML = row ? `
+    <span><strong>Estado:</strong> ${badgeEstado(row.ESTADO)}</span>
+    <span><strong>Fecha:</strong> ${row.FECHA_APERTURA || '-'}</span>
+    <span><strong>Obs:</strong> ${row.OBSERVACIONES || '—'}</span>` : '';
+  document.getElementById('dord-srvs').innerHTML  = '<tr><td colspan="4" style="padding:8px;color:#9ca3af">Cargando...</td></tr>';
+  document.getElementById('dord-prods').innerHTML = '<p style="color:#9ca3af;font-size:12px">Cargando...</p>';
+  openModal('modalDetalleOrden');
+  try {
+    const resumen = await apiFetch(`/api/ordenes/${ordenId}/resumen`);
+    const srvs    = resumen.detalles.filter(d => d.TIPO === 'SERVICIO');
+    const prods   = resumen.detalles.filter(d => d.TIPO === 'PRODUCTO');
+    document.getElementById('dord-srvs').innerHTML = srvs.length
+      ? srvs.map(d => `
+          <tr style="border-bottom:1px solid #f3f4f6">
+            <td style="padding:7px 10px">${d.NOMBRE}</td>
+            <td style="padding:7px 10px;text-align:center">${d.CANTIDAD}</td>
+            <td style="padding:7px 10px;text-align:right">${fmtCRC(d.PRECIO_UNITARIO)}</td>
+            <td style="padding:7px 10px;text-align:right;font-weight:600">${fmtCRC(d.SUBTOTAL)}</td>
+          </tr>`).join('')
+      : '<tr><td colspan="4" style="padding:8px;color:#9ca3af">Sin servicios agregados.</td></tr>';
+    document.getElementById('dord-prods').innerHTML = prods.length
+      ? prods.map(p => `
+          <div style="display:flex;justify-content:space-between;padding:6px 10px;background:#fff8f0;border-radius:6px;margin-bottom:4px">
+            <span>${p.NOMBRE} x${p.CANTIDAD}</span>
+            <span style="font-weight:600">${fmtCRC(p.SUBTOTAL)}</span>
+          </div>`).join('')
+      : '<p style="color:#9ca3af;font-size:12px">Sin productos registrados.</p>';
+    document.getElementById('dord-sub2').textContent  = fmtCRC(resumen.subtotal);
+    document.getElementById('dord-iva').textContent   = fmtCRC(resumen.impuesto);
+    document.getElementById('dord-total').textContent = fmtCRC(resumen.total);
+  } catch(e) {
+    document.getElementById('dord-srvs').innerHTML = `<tr><td colspan="4" style="padding:8px;color:#ef4444">${e.message}</td></tr>`;
+  }
 }
 
 async function delOrden(id) {

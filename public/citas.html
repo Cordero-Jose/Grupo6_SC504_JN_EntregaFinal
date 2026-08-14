@@ -12,6 +12,7 @@
   <nav>
     <div class="section-title">Principal</div>
     <a href="index.html">Dashboard</a>
+    <a href="atencion.html">Atencion al cliente</a>
     <div class="section-title">Operaciones</div>
     <a href="clientes.html">Clientes</a>
     <a href="vehiculos.html">Vehículos</a>
@@ -138,6 +139,45 @@
   </div>
 </div>
 
+<!-- Modal detalle cita (click on kanban card) -->
+<div class="modal-overlay" id="modal-detalle-cita">
+  <div class="modal" style="max-width:580px">
+    <div class="modal-header">
+      <div>
+        <h3 id="dc-title">Detalle de cita</h3>
+        <div style="font-size:12px;color:#6b7280;margin-top:2px" id="dc-sub"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-detalle-cita')">×</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;font-size:13px" id="dc-meta"></div>
+      <div id="dc-orden-area" style="display:none">
+        <h4 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#374151;margin:0 0 8px">Orden vinculada</h4>
+        <div id="dc-orden-info" style="background:#f7f8fa;border-radius:8px;padding:12px;font-size:13px;margin-bottom:12px"></div>
+        <h4 style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#374151;margin:0 0 8px">Servicios realizados</h4>
+        <table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:12px">
+          <thead>
+            <tr style="background:#f7f8fa">
+              <th style="text-align:left;padding:7px 10px;font-weight:600">Item</th>
+              <th style="text-align:center;padding:7px 10px;font-weight:600">Cant.</th>
+              <th style="text-align:right;padding:7px 10px;font-weight:600">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody id="dc-srvs"></tbody>
+        </table>
+        <div style="background:#f7f8fa;border-radius:8px;padding:10px 14px;font-size:13px;display:flex;justify-content:space-between;font-weight:700">
+          <span>Total estimado</span><span id="dc-total" style="color:#f97316"></span>
+        </div>
+      </div>
+      <div id="dc-sin-orden" style="color:#9ca3af;font-size:13px;padding:8px 0;display:none">Esta cita aun no tiene orden de servicio asignada.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="editarCita(_detalleCitaId)">Editar cita</button>
+      <button class="btn btn-outline" onclick="closeModal('modal-detalle-cita')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal cambiar estado (kept for kanban drag) -->
 <div class="modal-overlay" id="modal-estado">
   <div class="modal" style="max-width:340px">
@@ -164,6 +204,7 @@ let stateEditId = null;
 let vehiculosData = [];
 let _allCitas = [];
 let _grid = null;
+let _detalleCitaId = null;
 
 // ── Kanban ────────────────────────────────────────────────────────────────
 function buildKanban(rows) {
@@ -187,9 +228,11 @@ function buildKanban(rows) {
       card.innerHTML  = `
         <div class="kanban-card-id">${r.ID_CITA}</div>
         <div class="kanban-card-name">${r.CLIENTE}</div>
-        <div class="kanban-card-sub">${r.PLACA} · ${(r.FECHA_HORA||'').slice(0,10)}</div>`;
+        <div class="kanban-card-sub">${r.PLACA} · ${(r.FECHA_HORA||'').slice(0,10)}</div>
+        ${r.ID_ORDEN ? `<div style="margin-top:4px;font-size:11px;color:#3b82f6;font-weight:600">Orden: ${r.ID_ORDEN}</div>` : ''}`;
       card.addEventListener('dragstart', onDragStart);
       card.addEventListener('dragend',   onDragEnd);
+      card.addEventListener('click',     () => verDetalleCita(r.ID_CITA));
       col.appendChild(card);
     });
   });
@@ -325,6 +368,46 @@ async function guardarEditCita() {
     closeModal('modal-edit-cita');
     await load();
   } catch(e) { toast(e.message, 'error'); }
+}
+
+async function verDetalleCita(citaId) {
+  _detalleCitaId = citaId;
+  const r = _allCitas.find(x => x.ID_CITA === citaId);
+  if (!r) return;
+  document.getElementById('dc-title').textContent = `Cita ${citaId}`;
+  document.getElementById('dc-sub').textContent   = `${r.CLIENTE} · ${r.PLACA}`;
+  document.getElementById('dc-meta').innerHTML = `
+    <div><strong>Fecha / Hora</strong><br>${r.FECHA_HORA || '-'}</div>
+    <div><strong>Estado</strong><br>${badgeEstado(r.ESTADO_CITA)}</div>
+    <div><strong>Observacion</strong><br>${r.OBSERVACION || '—'}</div>
+    <div><strong>Orden vinculada</strong><br>${r.ID_ORDEN ? `<span style="color:#3b82f6;font-weight:600">${r.ID_ORDEN}</span>` : '<span style="color:#9ca3af">Ninguna</span>'}</div>`;
+  document.getElementById('dc-orden-area').style.display = 'none';
+  document.getElementById('dc-sin-orden').style.display  = 'none';
+  openModal('modal-detalle-cita');
+  if (r.ID_ORDEN) {
+    document.getElementById('dc-orden-area').style.display = 'block';
+    document.getElementById('dc-orden-info').innerHTML = 'Cargando...';
+    document.getElementById('dc-srvs').innerHTML = '<tr><td colspan="3" style="padding:8px;color:#9ca3af">Cargando...</td></tr>';
+    try {
+      const resumen = await apiFetch(`/api/ordenes/${r.ID_ORDEN}/resumen`);
+      document.getElementById('dc-orden-info').innerHTML = `
+        <span style="margin-right:16px"><strong>Orden:</strong> ${r.ID_ORDEN}</span>
+        <span style="margin-right:16px"><strong>Estado:</strong> ${badgeEstado(resumen.orden.ESTADO)}</span>`;
+      document.getElementById('dc-srvs').innerHTML = resumen.detalles.length
+        ? resumen.detalles.map(d => `
+            <tr style="border-bottom:1px solid #f3f4f6">
+              <td style="padding:7px 10px">${d.NOMBRE}</td>
+              <td style="padding:7px 10px;text-align:center">${d.CANTIDAD}</td>
+              <td style="padding:7px 10px;text-align:right;font-weight:600">${fmtCRC(d.SUBTOTAL)}</td>
+            </tr>`).join('')
+        : '<tr><td colspan="3" style="padding:8px;color:#9ca3af">Sin items registrados.</td></tr>';
+      document.getElementById('dc-total').textContent = fmtCRC(resumen.total);
+    } catch(e) {
+      document.getElementById('dc-orden-info').innerHTML = `<span style="color:#ef4444">${e.message}</span>`;
+    }
+  } else {
+    document.getElementById('dc-sin-orden').style.display = 'block';
+  }
 }
 
 function editEstado(id) { stateEditId = id; openModal('modal-estado'); }

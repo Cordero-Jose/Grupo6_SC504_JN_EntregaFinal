@@ -152,25 +152,25 @@ const _ROLES = {
     ADMINISTRADOR: {
         label: 'Administrador',
         color: '#7c3aed',
-        pages: ['index.html','clientes.html','vehiculos.html','citas.html','ordenes.html',
+        pages: ['index.html','atencion.html','clientes.html','vehiculos.html','citas.html','ordenes.html',
                 'servicios.html','productos.html','inventario.html',
                 'facturas.html','pagos.html','usuarios.html','auditoria.html']
     },
     MECANICO: {
         label: 'Mecánico',
         color: '#2563eb',
-        pages: ['index.html','citas.html','ordenes.html','servicios.html',
+        pages: ['index.html','atencion.html','citas.html','ordenes.html','servicios.html',
                 'productos.html','inventario.html','vehiculos.html','clientes.html']
     },
     CAJERO: {
         label: 'Cajero',
         color: '#16a34a',
-        pages: ['index.html','facturas.html','pagos.html','clientes.html','vehiculos.html']
+        pages: ['index.html','atencion.html','facturas.html','pagos.html','clientes.html','vehiculos.html']
     },
     RECEPCIONISTA: {
         label: 'Recepcionista',
         color: '#d97706',
-        pages: ['index.html','clientes.html','vehiculos.html','citas.html','servicios.html']
+        pages: ['index.html','atencion.html','clientes.html','vehiculos.html','citas.html','servicios.html']
     }
 };
 

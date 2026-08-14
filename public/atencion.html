@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lubricentro - Atencion al cliente</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/gridjs/dist/theme/mermaid.min.css">
+</head>
+<body>
+<aside class="sidebar">
+  <div class="sidebar-logo"><h2>Lubricentro</h2></div>
+  <nav>
+    <div class="section-title">Principal</div>
+    <a href="index.html">Dashboard</a>
+    <a href="atencion.html">Atencion al cliente</a>
+    <div class="section-title">Operaciones</div>
+    <a href="clientes.html">Clientes</a>
+    <a href="vehiculos.html">Vehiculos</a>
+    <a href="citas.html">Citas</a>
+    <a href="ordenes.html">Ordenes</a>
+    <a href="servicios.html">Servicios</a>
+    <div class="section-title">Inventario</div>
+    <a href="productos.html">Productos</a>
+    <a href="inventario.html">Inventario</a>
+    <div class="section-title">Finanzas</div>
+    <a href="facturas.html">Facturas</a>
+    <a href="pagos.html">Pagos</a>
+    <div class="section-title">Sistema</div>
+    <a href="usuarios.html">Usuarios</a>
+    <a href="auditoria.html">Auditoria</a>
+  </nav>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <div><h1>Atencion al cliente</h1><div class="subtitle" id="at-subtitle">Flujo completo de atencion</div></div>
+  </div>
+  <div class="content">
+
+    <!-- Role tabs (admin sees all, others see one) -->
+    <div id="at-tabs" style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap"></div>
+
+    <!-- PANEL 1 RECEPCIONISTA: Recibir cliente -->
+    <div id="panel-recep" class="at-panel" style="display:none">
+      <div class="panel">
+        <div class="panel-header"><h3>Recibir cliente / crear cita</h3></div>
+        <div class="panel-body" style="padding:20px">
+
+          <!-- Step indicator -->
+          <div style="display:flex;gap:0;margin-bottom:24px" id="recep-steps">
+            <div class="at-step active" data-step="1">1. Cliente</div>
+            <div class="at-step" data-step="2">2. Vehiculo</div>
+            <div class="at-step" data-step="3">3. Cita</div>
+          </div>
+
+          <!-- Step 1: Cliente -->
+          <div id="recep-s1">
+            <div style="display:flex;gap:8px;margin-bottom:12px">
+              <input id="r-buscar-cli" placeholder="Buscar cliente por nombre o cedula..." style="flex:1;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13.5px">
+              <button class="btn btn-outline btn-sm" onclick="buscarCliente()">Buscar</button>
+              <button class="btn btn-primary btn-sm" onclick="mostrarFormCliente(true)">+ Nuevo</button>
+            </div>
+            <div id="r-resultados-cli" style="margin-bottom:12px"></div>
+            <!-- Inline new-client form -->
+            <div id="r-form-cli" style="display:none;background:#f7f8fa;border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin-bottom:12px">
+              <div class="form-grid">
+                <div class="form-group"><label>Nombre *</label><input id="rc-nombre" placeholder="Juan Perez"></div>
+                <div class="form-group"><label>Cedula *</label><input id="rc-cedula" placeholder="112345678"></div>
+                <div class="form-group"><label>Telefono</label><input id="rc-tel" placeholder="88001234"></div>
+                <div class="form-group"><label>Correo</label><input id="rc-correo" type="email" placeholder="juan@correo.com"></div>
+                <div class="form-group form-full"><label>Direccion</label><input id="rc-dir"></div>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button class="btn btn-outline btn-sm" onclick="mostrarFormCliente(false)">Cancelar</button>
+                <button class="btn btn-primary btn-sm" onclick="crearCliente()">Guardar cliente</button>
+              </div>
+            </div>
+            <div id="r-cli-sel" style="display:none" class="at-sel-card">
+              <span id="r-cli-label"></span>
+              <button class="btn btn-outline btn-sm" onclick="resetCliente()">Cambiar</button>
+            </div>
+            <button class="btn btn-primary" id="r-btn-s1" style="display:none;margin-top:12px" onclick="recepGoto(2)">Continuar &rarr;</button>
+          </div>
+
+          <!-- Step 2: Vehiculo -->
+          <div id="recep-s2" style="display:none">
+            <div style="display:flex;gap:8px;margin-bottom:12px">
+              <select id="r-sel-veh" style="flex:1;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13.5px"><option value="">-- seleccione vehiculo --</option></select>
+              <button class="btn btn-primary btn-sm" onclick="mostrarFormVehiculo(true)">+ Nuevo</button>
+            </div>
+            <!-- Inline new-vehicle form -->
+            <div id="r-form-veh" style="display:none;background:#f7f8fa;border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin-bottom:12px">
+              <div class="form-grid">
+                <div class="form-group"><label>Marca *</label><select id="rv-marca" onchange="loadRvModelos()"></select></div>
+                <div class="form-group"><label>Modelo *</label><select id="rv-modelo"></select></div>
+                <div class="form-group"><label>Placa *</label><input id="rv-placa" placeholder="ABC123"></div>
+                <div class="form-group"><label>Color</label><input id="rv-color"></div>
+                <div class="form-group"><label>Kilometraje</label><input id="rv-km" type="number" value="0"></div>
+              </div>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button class="btn btn-outline btn-sm" onclick="mostrarFormVehiculo(false)">Cancelar</button>
+                <button class="btn btn-primary btn-sm" onclick="crearVehiculo()">Guardar vehiculo</button>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button class="btn btn-outline btn-sm" onclick="recepGoto(1)">&larr; Atras</button>
+              <button class="btn btn-primary" onclick="recepGoto(3)">Continuar &rarr;</button>
+            </div>
+          </div>
+
+          <!-- Step 3: Cita -->
+          <div id="recep-s3" style="display:none">
+            <div class="form-grid">
+              <div class="form-group"><label>Fecha y hora *</label><input id="r-fecha" type="datetime-local"></div>
+              <div class="form-group"><label>Estado</label>
+                <select id="r-estado"><option>CONFIRMADA</option><option>PENDIENTE</option></select>
+              </div>
+              <div class="form-group form-full"><label>Motivo / Observacion</label>
+                <input id="r-obs" placeholder="Cambio de aceite, revision frenos...">
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:16px">
+              <button class="btn btn-outline btn-sm" onclick="recepGoto(2)">Atras</button>
+              <button class="btn btn-primary" onclick="crearCita()">Confirmar cita</button>
+            </div>
+          </div>
+
+          <!-- Confirmation -->
+          <div id="recep-ok" style="display:none;text-align:center;padding:24px 0">
+            <div style="font-size:48px;margin-bottom:8px">&#10003;</div>
+            <h3 id="recep-ok-msg"></h3>
+            <p style="color:#6b7280;font-size:13px">El mecanico puede ver la cita en su panel.</p>
+            <button class="btn btn-primary" style="margin-top:12px" onclick="resetRecep()">+ Nueva atencion</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 2 - MECANICO: Trabajar orden -->
+    <div id="panel-mec" class="at-panel" style="display:none">
+      <div class="panel">
+        <div class="panel-header"><h3>Mecanico - Cola de trabajo</h3>
+          <button class="btn btn-outline btn-sm" onclick="loadMecCitas()">Actualizar</button>
+        </div>
+        <div class="panel-body" id="mec-lista" style="padding:16px"></div>
+      </div>
+
+      <!-- Order work area (hidden until a cita is selected) -->
+      <div id="mec-orden-area" style="display:none;margin-top:16px">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3 id="mec-orden-title">Orden</h3>
+              <div class="subtitle" id="mec-orden-sub"></div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <select id="mec-estado-sel" class="btn btn-outline btn-sm" style="padding:5px 10px">
+                <option>ABIERTA</option><option>EN_PROCESO</option><option>FINALIZADA</option><option>CANCELADA</option>
+              </select>
+              <button class="btn btn-warning btn-sm" onclick="cambiarEstadoOrden()">Guardar estado</button>
+            </div>
+          </div>
+          <div class="panel-body" style="padding:20px">
+
+            <!-- Services cart -->
+            <h4 style="margin:0 0 10px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#374151">Servicios</h4>
+            <div id="mec-detalles"></div>
+            <div style="display:flex;gap:8px;margin-top:10px;align-items:flex-end">
+              <div class="form-group" style="flex:2;margin:0"><label style="font-size:12px">Servicio</label>
+                <select id="mec-srv-sel"></select>
+              </div>
+              <div class="form-group" style="flex:0 0 80px;margin:0"><label style="font-size:12px">Cant.</label>
+                <input id="mec-srv-qty" type="number" min="1" value="1" style="padding:8px;border:1px solid #d1d5db;border-radius:8px;width:100%">
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="agregarServicio()">+ Agregar</button>
+            </div>
+
+            <!-- Subtotal -->
+            <div style="margin-top:16px;padding:12px 16px;background:#f7f8fa;border-radius:8px;display:flex;justify-content:space-between;align-items:center">
+              <span style="font-weight:600;font-size:13px">Subtotal servicios</span>
+              <span id="mec-subtotal" style="font-weight:700;font-size:16px;color:#1a1d23">CRC 0.00</span>
+            </div>
+
+            <!-- Products used -->
+            <h4 style="margin:20px 0 10px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#374151">Productos utilizados</h4>
+            <div id="mec-productos-list"></div>
+            <div style="display:flex;gap:8px;margin-top:10px;align-items:flex-end">
+              <div class="form-group" style="flex:2;margin:0"><label style="font-size:12px">Producto</label>
+                <select id="mec-prod-sel"></select>
+              </div>
+              <div class="form-group" style="flex:0 0 80px;margin:0"><label style="font-size:12px">Cant.</label>
+                <input id="mec-prod-qty" type="number" min="1" value="1" style="padding:8px;border:1px solid #d1d5db;border-radius:8px;width:100%">
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="registrarProducto()">+ Registrar</button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL 3 - CAJERO: Cobrar -->
+    <div id="panel-caj" class="at-panel" style="display:none">
+      <div class="panel">
+        <div class="panel-header"><h3>Cajero - Ordenes listas para cobrar</h3>
+          <button class="btn btn-outline btn-sm" onclick="loadCajOrdenes()">Actualizar</button>
+        </div>
+        <div class="panel-body" id="caj-lista" style="padding:16px"></div>
+      </div>
+
+      <!-- Checkout card -->
+      <div id="caj-checkout" style="display:none;margin-top:16px">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <h3 id="caj-orden-title">Factura</h3>
+              <div class="subtitle" id="caj-orden-sub"></div>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="cerrarCheckout()">&larr; Volver</button>
+          </div>
+          <div class="panel-body" style="padding:20px">
+            <table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:13px">
+              <thead>
+                <tr style="background:#f7f8fa">
+                  <th style="text-align:left;padding:8px 12px;font-weight:600">Servicio</th>
+                  <th style="text-align:center;padding:8px 12px;font-weight:600">Cant.</th>
+                  <th style="text-align:right;padding:8px 12px;font-weight:600">Precio unit.</th>
+                  <th style="text-align:right;padding:8px 12px;font-weight:600">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody id="caj-detalles-table"></tbody>
+            </table>
+            <div style="background:#f7f8fa;border-radius:8px;padding:16px;margin-bottom:16px">
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px"><span>Subtotal</span><span id="caj-sub"></span></div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;color:#6b7280"><span>IVA (13%)</span><span id="caj-iva"></span></div>
+              <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:700"><span>Total</span><span id="caj-total" style="color:#f97316"></span></div>
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Metodo de pago *</label>
+                <select id="caj-metodo">
+                  <option value="EFECTIVO">Efectivo</option>
+                  <option value="TARJETA">Tarjeta</option>
+                  <option value="SINPE">SINPE</option>
+                  <option value="TRANSFERENCIA">Transferencia</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Referencia</label>
+                <input id="caj-ref" placeholder="# comprobante, ultimos 4 digitos...">
+              </div>
+            </div>
+            <button class="btn btn-primary" style="width:100%;margin-top:8px;font-size:15px;padding:12px" onclick="cobrar()">Cobrar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Receipt success -->
+      <div id="caj-recibo" style="display:none;margin-top:16px">
+        <div class="panel">
+          <div class="panel-body" style="padding:32px;text-align:center">
+            <div style="font-size:56px;margin-bottom:8px">&#10003;</div>
+            <h2 id="caj-recibo-titulo"></h2>
+            <p id="caj-recibo-det" style="color:#6b7280;font-size:13px;margin:8px 0 20px"></p>
+            <button class="btn btn-primary" onclick="resetCajero()">+ Siguiente cobro</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<div id="toast"></div>
+<script src="app.js"></script>
+<script>
+// STATE
+const ROLE = currentRole();
+let _clientes = [], _vehiculos = [], _marcas = [], _allModelos = [], _servicios = [], _productos = [];
+let _selClienteId = null, _selVehiculoId = null;
+let _mecCitaId = null, _mecOrdenId = null, _mecDetalles = [], _mecProductosUsados = [];
+let _cajOrdenId = null, _cajResumen = null;
+
+// TABS
+const TAB_BY_ROLE = {
+  RECEPCIONISTA: ['recep'],
+  MECANICO:      ['mec'],
+  CAJERO:        ['caj'],
+  ADMINISTRADOR: ['recep','mec','caj'],
+  SUPERVISOR:    ['recep','mec','caj']
+};
+const TAB_LABELS = { recep:'Recepcionista', mec:'Mecanico', caj:'Cajero' };
+let _activeTab = null;
+
+function initTabs() {
+  const tabs = TAB_BY_ROLE[ROLE] || ['recep'];
+  const container = document.getElementById('at-tabs');
+  tabs.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-outline';
+    btn.textContent = TAB_LABELS[t];
+    btn.dataset.tab = t;
+    btn.onclick = () => showTab(t);
+    container.appendChild(btn);
+  });
+  showTab(tabs[0]);
+  // hide tab bar if only one tab
+  if (tabs.length === 1) container.style.display = 'none';
+}
+
+function showTab(tab) {
+  _activeTab = tab;
+  document.querySelectorAll('.at-panel').forEach(p => p.style.display = 'none');
+  document.getElementById('panel-' + tab).style.display = 'block';
+  document.querySelectorAll('#at-tabs button').forEach(b => {
+    b.classList.toggle('btn-primary', b.dataset.tab === tab);
+    b.classList.toggle('btn-outline', b.dataset.tab !== tab);
+  });
+  if (tab === 'mec') loadMecCitas();
+  if (tab === 'caj') loadCajOrdenes();
+}
+
+// SHARED CATALOGS
+async function loadCatalogs() {
+  [_clientes, _marcas, _allModelos, _servicios, _productos] = await Promise.all([
+    apiFetch('/api/clientes'),
+    apiFetch('/api/vehiculos/catalogos/marcas'),
+    apiFetch('/api/vehiculos/catalogos/modelos'),
+    apiFetch('/api/servicios'),
+    apiFetch('/api/productos')
+  ]);
+  // Populate vehicle marca select in recep form
+  document.getElementById('rv-marca').innerHTML = _marcas.map(m => `<option value="${m.ID_MARCA}">${m.NOMBRE_MARCA}</option>`).join('');
+  loadRvModelos();
+  // Mechanic service select
+  document.getElementById('mec-srv-sel').innerHTML = _servicios.map(s => `<option value="${s.ID_SERVICIO}" data-precio="${s.PRECIO_BASE}">${s.NOMBRE_SERVICIO} - ${fmtCRC(s.PRECIO_BASE)}</option>`).join('');
+  // Mechanic product select
+  document.getElementById('mec-prod-sel').innerHTML = _productos.map(p => `<option value="${p.ID_PRODUCTO}">${p.NOMBRE_PRODUCTO}</option>`).join('');
+}
+
+// PANEL 1: RECEPCIONISTA
+function recepGoto(step) {
+  if (step === 2 && !_selClienteId) { toast('Seleccione un cliente primero', 'warning'); return; }
+  if (step === 3) {
+    const veh = document.getElementById('r-sel-veh').value;
+    if (!veh) { toast('Seleccione un vehiculo', 'warning'); return; }
+    _selVehiculoId = veh;
+    // Pre-fill datetime to next full hour
+    const dt = new Date(); dt.setHours(dt.getHours()+1, 0, 0, 0);
+    document.getElementById('r-fecha').value = dt.toISOString().slice(0,16);
+  }
+  [1,2,3].forEach(s => {
+    document.getElementById('recep-s'+s).style.display = s === step ? 'block' : 'none';
+    const el = document.querySelector(`.at-step[data-step="${s}"]`);
+    if (el) { el.classList.toggle('active', s === step); el.classList.toggle('done', s < step); }
+  });
+}
+
+async function buscarCliente() {
+  const q = document.getElementById('r-buscar-cli').value.trim().toLowerCase();
+  if (!q) { toast('Escriba un nombre o cedula', 'warning'); return; }
+  const found = _clientes.filter(c => c.NOMBRE.toLowerCase().includes(q) || (c.CEDULA||'').includes(q));
+  const div = document.getElementById('r-resultados-cli');
+  if (!found.length) { div.innerHTML = '<p style="color:#6b7280;font-size:13px">Sin resultados.</p>'; return; }
+  div.innerHTML = found.map(c => `
+    <div class="at-result-row" onclick="seleccionarCliente('${c.ID_CLIENTE}','${c.NOMBRE.replace(/'/g,"\\'")}')">
+      <strong>${c.NOMBRE}</strong> <span style="color:#6b7280;font-size:12px">${c.CEDULA||''}</span>
+    </div>`).join('');
+}
+
+function seleccionarCliente(id, nombre) {
+  _selClienteId = id;
+  document.getElementById('r-resultados-cli').innerHTML = '';
+  document.getElementById('r-buscar-cli').value = '';
+  document.getElementById('r-form-cli').style.display = 'none';
+  document.getElementById('r-cli-sel').style.display = 'flex';
+  document.getElementById('r-cli-label').textContent = 'OK: ' + nombre;
+  document.getElementById('r-btn-s1').style.display = 'inline-block';
+  // Load vehicles for this client
+  loadVehiculosSelect(id);
+}
+
+async function loadVehiculosSelect(clienteId) {
+  if (!_vehiculos.length) _vehiculos = await apiFetch('/api/vehiculos');
+  const vehs = _vehiculos.filter(v => v.ID_CLIENTE === clienteId);
+  const sel = document.getElementById('r-sel-veh');
+  sel.innerHTML = '<option value="">-- seleccione --</option>' + vehs.map(v => `<option value="${v.ID_VEHICULO}">${v.PLACA} - ${v.MARCA} ${v.MODELO}</option>`).join('');
+}
+
+function resetCliente() {
+  _selClienteId = null; _selVehiculoId = null;
+  document.getElementById('r-cli-sel').style.display = 'none';
+  document.getElementById('r-btn-s1').style.display = 'none';
+  document.getElementById('r-buscar-cli').value = '';
+}
+
+function mostrarFormCliente(show) {
+  document.getElementById('r-form-cli').style.display = show ? 'block' : 'none';
+}
+
+async function crearCliente() {
+  const nombre = document.getElementById('rc-nombre').value.trim();
+  const cedula = document.getElementById('rc-cedula').value.trim();
+  if (!nombre || !cedula) { toast('Nombre y cedula son obligatorios', 'warning'); return; }
+  const id = await nextId('/api/clientes', 'C');
+  try {
+    await apiFetch('/api/clientes', { method:'POST', body: JSON.stringify({
+      id_cliente: id, nombre, cedula,
+      telefono: document.getElementById('rc-tel').value || null,
+      correo:   document.getElementById('rc-correo').value || null,
+      direccion: document.getElementById('rc-dir').value || null
+    })});
+    _clientes = await apiFetch('/api/clientes'); // refresh
+    toast(`Cliente ${nombre} creado`, 'success');
+    mostrarFormCliente(false);
+    seleccionarCliente(id, nombre);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function loadRvModelos() {
+  const marcaId = document.getElementById('rv-marca').value;
+  const mods = _allModelos.filter(m => m.ID_MARCA === marcaId);
+  document.getElementById('rv-modelo').innerHTML = mods.map(m => `<option value="${m.ID_MODELO}">${m.NOMBRE_MODELO} (${m.ANIO})</option>`).join('');
+}
+
+function mostrarFormVehiculo(show) {
+  document.getElementById('r-form-veh').style.display = show ? 'block' : 'none';
+}
+
+async function crearVehiculo() {
+  if (!_selClienteId) { toast('Seleccione un cliente primero', 'warning'); return; }
+  const placa = document.getElementById('rv-placa').value.trim();
+  const modelo = document.getElementById('rv-modelo').value;
+  if (!placa || !modelo) { toast('Placa y modelo son obligatorios', 'warning'); return; }
+  const id = await nextId('/api/vehiculos', 'V', 3, 'ID_VEHICULO');
+  try {
+    await apiFetch('/api/vehiculos', { method:'POST', body: JSON.stringify({
+      id_vehiculo: id, id_cliente: _selClienteId, id_modelo: modelo,
+      placa, kilometraje: document.getElementById('rv-km').value || 0,
+      color: document.getElementById('rv-color').value || null
+    })});
+    _vehiculos = await apiFetch('/api/vehiculos');
+    toast(`Vehiculo ${placa} creado`, 'success');
+    mostrarFormVehiculo(false);
+    loadVehiculosSelect(_selClienteId);
+    document.getElementById('r-sel-veh').value = id;
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function crearCita() {
+  const veh = document.getElementById('r-sel-veh').value || _selVehiculoId;
+  const fechaRaw = document.getElementById('r-fecha').value;
+  if (!veh) { toast('Seleccione un vehiculo', 'warning'); return; }
+  if (!fechaRaw) { toast('Seleccione fecha y hora', 'warning'); return; }
+  const id = await nextId('/api/citas', 'CIT', 3, 'ID_CITA');
+  try {
+    await apiFetch('/api/citas', { method:'POST', body: JSON.stringify({
+      id_cita: id, id_cliente: _selClienteId, id_vehiculo: veh,
+      fecha_hora: fechaRaw.replace('T', ' '),
+      estado: document.getElementById('r-estado').value,
+      observacion: document.getElementById('r-obs').value || null
+    })});
+    document.getElementById('recep-s3').style.display = 'none';
+    document.getElementById('recep-ok').style.display = 'block';
+    document.getElementById('recep-ok-msg').textContent = `Cita ${id} creada correctamente`;
+    toast('Cita creada', 'success');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function resetRecep() {
+  _selClienteId = null; _selVehiculoId = null;
+  ['rc-nombre','rc-cedula','rc-tel','rc-correo','rc-dir','r-buscar-cli','r-obs'].forEach(i => { const el=document.getElementById(i); if(el) el.value=''; });
+  document.getElementById('r-resultados-cli').innerHTML = '';
+  document.getElementById('r-cli-sel').style.display = 'none';
+  document.getElementById('r-btn-s1').style.display = 'none';
+  document.getElementById('r-form-cli').style.display = 'none';
+  document.getElementById('r-form-veh').style.display = 'none';
+  document.getElementById('recep-ok').style.display = 'none';
+  recepGoto(1);
+}
+
+// PANEL 2: MECANICO
+async function loadMecCitas() {
+  const citas = await apiFetch('/api/citas');
+  // Show CONFIRMADA citas with no order, PLUS active orders
+  const pending = citas.filter(c => c.ESTADO_CITA === 'CONFIRMADA' && !c.ID_ORDEN);
+  const active  = citas.filter(c => c.ID_ORDEN && ['ABIERTA','EN_PROCESO'].includes(c.ESTADO_ORDEN));
+  const div = document.getElementById('mec-lista');
+  let html = '';
+  if (active.length) {
+    html += `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;margin-bottom:8px">Ordenes en curso</div>`;
+    html += active.map(c => `
+      <div class="at-queue-card active-order" onclick="abrirOrden('${c.ID_ORDEN}','${c.ID_CITA}')">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>${c.CLIENTE}</strong> &middot; <span style="color:#6b7280">${c.PLACA}</span></div>
+          <div>${badgeEstado(c.ESTADO_ORDEN)}</div>
+        </div>
+        <div style="font-size:12px;color:#6b7280;margin-top:4px">Orden ${c.ID_ORDEN} &middot; ${(c.FECHA_HORA||'').slice(0,10)}</div>
+      </div>`).join('');
+    html += '<div style="height:12px"></div>';
+  }
+  if (pending.length) {
+    html += `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;margin-bottom:8px">Citas confirmadas sin orden</div>`;
+    html += pending.map(c => `
+      <div class="at-queue-card" onclick="abrirCitaNueva('${c.ID_CITA}','${c.CLIENTE}','${c.PLACA}')">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>${c.CLIENTE}</strong> &middot; <span style="color:#6b7280">${c.PLACA}</span></div>
+          <span class="badge badge-warning">Sin orden</span>
+        </div>
+        <div style="font-size:12px;color:#6b7280;margin-top:4px">Cita ${c.ID_CITA} &middot; ${(c.FECHA_HORA||'').slice(0,10)} &middot; ${c.OBSERVACION||'Sin observacion'}</div>
+      </div>`).join('');
+  }
+  if (!active.length && !pending.length) {
+    html = '<p style="color:#6b7280;font-size:13px;padding:8px 0">No hay citas confirmadas pendientes por atender.</p>';
+  }
+  div.innerHTML = html;
+}
+
+async function abrirCitaNueva(citaId, cliente, placa) {
+  // Create a new order for this cita
+  const usuarios = await apiFetch('/api/usuarios');
+  const rolLabel = { MECANICO:'Mecanico', ADMINISTRADOR:'Administrador', RECEPCIONISTA:'Recepcionista' }[ROLE] || ROLE;
+  const usuario  = usuarios.find(u => u.ESTADO==='ACTIVO' && u.NOMBRE_ROL === rolLabel)
+                || usuarios.find(u => u.ESTADO==='ACTIVO');
+  if (!usuario) { toast('No hay usuarios activos en el sistema', 'error'); return; }
+  const id = await nextId('/api/ordenes', 'O');
+  try {
+    await apiFetch('/api/ordenes', { method:'POST', body: JSON.stringify({
+      id_orden: id, id_cita: citaId, id_usuario: usuario.ID_USUARIO,
+      fecha_apertura: new Date().toISOString().split('T')[0],
+      estado: 'ABIERTA', observaciones: null
+    })});
+    toast(`Orden ${id} creada`, 'success');
+    _mecCitaId = citaId; _mecOrdenId = id;
+    await cargarOrdenMec(id, cliente, placa);
+    loadMecCitas();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function abrirOrden(ordenId, citaId) {
+  _mecOrdenId = ordenId; _mecCitaId = citaId;
+  const { orden, detalles } = await apiFetch(`/api/ordenes/${ordenId}`);
+  const citas = await apiFetch('/api/citas');
+  const cita  = citas.find(c => c.ID_CITA === citaId);
+  await cargarOrdenMec(ordenId, cita?.CLIENTE||'-', cita?.PLACA||'-', orden, detalles);
+}
+
+async function cargarOrdenMec(ordenId, cliente, placa, orden=null, detalles=null) {
+  if (!orden) {
+    const res = await apiFetch(`/api/ordenes/${ordenId}`);
+    orden = res.orden; detalles = res.detalles;
+  }
+  _mecDetalles = detalles || [];
+  document.getElementById('mec-orden-title').textContent = `Orden ${ordenId} - ${cliente}`;
+  document.getElementById('mec-orden-sub').textContent   = `Vehiculo: ${placa} | Estado: ${orden.ESTADO||orden.estado}`;
+  document.getElementById('mec-estado-sel').value        = orden.ESTADO || orden.estado || 'ABIERTA';
+  document.getElementById('mec-orden-area').style.display = 'block';
+  renderDetalles();
+  renderProductosUsados();
+}
+
+function renderDetalles() {
+  const div = document.getElementById('mec-detalles');
+  if (!_mecDetalles.length) { div.innerHTML = '<p style="color:#9ca3af;font-size:12px;padding:4px 0">Sin servicios agregados aun.</p>'; updateMecSubtotal(); return; }
+  div.innerHTML = _mecDetalles.map(d => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#f7f8fa;border-radius:8px;margin-bottom:6px;font-size:13px">
+      <span><strong>${d.NOMBRE_SERVICIO}</strong> x${d.CANTIDAD}</span>
+      <span style="display:flex;gap:12px;align-items:center">
+        <span>${fmtCRC(d.SUBTOTAL)}</span>
+        <button class="btn btn-danger btn-sm" style="padding:2px 8px;font-size:11px" onclick="quitarDetalle('${d.ID_DETALLE}')">X</button>
+      </span>
+    </div>`).join('');
+  updateMecSubtotal();
+}
+
+function updateMecSubtotal() {
+  const tot = _mecDetalles.reduce((s,d) => s + Number(d.SUBTOTAL), 0);
+  document.getElementById('mec-subtotal').textContent = fmtCRC(tot);
+}
+
+async function agregarServicio() {
+  if (!_mecOrdenId) return;
+  const sel   = document.getElementById('mec-srv-sel');
+  const srvId = sel.value;
+  if (!srvId) { toast('Seleccione un servicio', 'warning'); return; }
+  let precio = parseFloat(sel.options[sel.selectedIndex]?.dataset.precio || 0);
+  // If the option did not carry a price, fetch it directly from the catalog
+  if (!precio) {
+    const srv = _servicios.find(s => s.ID_SERVICIO === srvId);
+    precio = srv ? parseFloat(srv.PRECIO_BASE) || 0 : 0;
+  }
+  const qty   = parseInt(document.getElementById('mec-srv-qty').value) || 1;
+  // global det counter - fetch all orders for unique ID
+  const allOrds  = await apiFetch('/api/ordenes');
+  let maxDet = 0;
+  for (const o of allOrds) {
+    const r = await apiFetch(`/api/ordenes/${o.ID_ORDEN}`);
+    r.detalles.forEach(d => { const n=parseInt(d.ID_DETALLE.replace(/\D/g,''),10)||0; if(n>maxDet) maxDet=n; });
+  }
+  const detId = 'DET' + String(maxDet+1).padStart(3,'0');
+  try {
+    await apiFetch(`/api/ordenes/${_mecOrdenId}/detalles`, { method:'POST', body: JSON.stringify({
+      id_detalle: detId, id_servicio: srvId, cantidad: qty, precio_unitario: precio
+    })});
+    toast('Servicio agregado', 'success');
+    const res = await apiFetch(`/api/ordenes/${_mecOrdenId}`);
+    _mecDetalles = res.detalles;
+    renderDetalles();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function quitarDetalle(detId) {
+  try {
+    await apiFetch(`/api/ordenes/${_mecOrdenId}/detalles/${detId}`, { method:'DELETE' });
+    const res = await apiFetch(`/api/ordenes/${_mecOrdenId}`);
+    _mecDetalles = res.detalles;
+    renderDetalles();
+    toast('Servicio eliminado', 'success');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function renderProductosUsados() {
+  const div = document.getElementById('mec-productos-list');
+  if (!_mecProductosUsados.length) { div.innerHTML = '<p style="color:#9ca3af;font-size:12px;padding:4px 0">Sin productos registrados aun.</p>'; return; }
+  div.innerHTML = _mecProductosUsados.map((p,i) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#fff8f0;border-radius:8px;margin-bottom:6px;font-size:13px">
+      <span>${p.nombre} x${p.qty}</span>
+      <span style="color:#6b7280;font-size:11px">SALIDA registrada</span>
+    </div>`).join('');
+}
+
+async function registrarProducto() {
+  if (!_mecOrdenId) return;
+  const sel    = document.getElementById('mec-prod-sel');
+  const prodId = sel.value;
+  const nombre = sel.options[sel.selectedIndex]?.text || prodId;
+  const qty    = parseInt(document.getElementById('mec-prod-qty').value) || 1;
+  const invId  = await nextId('/api/inventario', 'INV');
+  try {
+    await apiFetch('/api/inventario', { method:'POST', body: JSON.stringify({
+      id_movimiento: invId, id_producto: prodId,
+      tipo_movimiento: 'SALIDA', cantidad: qty,
+      fecha_movimiento: new Date().toISOString().split('T')[0],
+      descripcion: `Usado en orden ${_mecOrdenId}`
+    })});
+    _mecProductosUsados.push({ nombre, qty });
+    renderProductosUsados();
+    toast(`${nombre} registrado como SALIDA`, 'success');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function cambiarEstadoOrden() {
+  const estado = document.getElementById('mec-estado-sel').value;
+  try {
+    await apiFetch(`/api/ordenes/${_mecOrdenId}`, { method:'PUT', body: JSON.stringify({ estado }) });
+    if (estado === 'FINALIZADA' && _mecCitaId) {
+      await apiFetch(`/api/citas/${_mecCitaId}`, { method:'PUT', body: JSON.stringify({ estado: 'ATENDIDA' }) });
+    }
+    toast(`Orden -> ${estado}`, 'success');
+    document.getElementById('mec-orden-sub').textContent = document.getElementById('mec-orden-sub').textContent.replace(/Estado:.*/, `Estado: ${estado}`);
+    loadMecCitas();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// PANEL 3: CAJERO
+async function loadCajOrdenes() {
+  const ordenes = await apiFetch('/api/ordenes?sin_factura=1');
+  const div = document.getElementById('caj-lista');
+  if (!ordenes.length) { div.innerHTML = '<p style="color:#6b7280;font-size:13px;padding:8px 0">No hay ordenes finalizadas pendientes de cobro.</p>'; return; }
+  div.innerHTML = ordenes.map(o => `
+    <div class="at-queue-card" onclick="abrirCheckout('${o.ID_ORDEN}')">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><strong>${o.CLIENTE}</strong> &middot; <span style="color:#6b7280">${o.PLACA}</span></div>
+        <span class="badge badge-success">FINALIZADA</span>
+      </div>
+      <div style="font-size:12px;color:#6b7280;margin-top:4px">Orden ${o.ID_ORDEN} &middot; ${o.FECHA_APERTURA} &middot; ${o.MECANICO}</div>
+    </div>`).join('');
+}
+
+async function abrirCheckout(ordenId) {
+  try {
+    _cajOrdenId = ordenId;
+    _cajResumen = await apiFetch(`/api/ordenes/${ordenId}/resumen`);
+    const { orden, detalles, subtotal, impuesto, total } = _cajResumen;
+    document.getElementById('caj-orden-title').textContent = `Cobro - Orden ${ordenId}`;
+    document.getElementById('caj-orden-sub').innerHTML = `${orden.CLIENTE} &middot; ${orden.PLACA}`;
+    document.getElementById('caj-detalles-table').innerHTML = detalles.length
+      ? detalles.map(d => `
+          <tr style="border-bottom:1px solid #f3f4f6">
+            <td style="padding:8px 12px">${d.NOMBRE || d.NOMBRE_SERVICIO || ''}</td>
+            <td style="padding:8px 12px;text-align:center">${d.CANTIDAD}</td>
+            <td style="padding:8px 12px;text-align:right">${fmtCRC(d.PRECIO_UNITARIO)}</td>
+            <td style="padding:8px 12px;text-align:right;font-weight:600">${fmtCRC(d.SUBTOTAL)}</td>
+          </tr>`).join('')
+      : '<tr><td colspan="4" style="padding:12px;color:#6b7280;text-align:center">Sin servicios registrados</td></tr>';
+    document.getElementById('caj-sub').textContent   = fmtCRC(subtotal);
+    document.getElementById('caj-iva').textContent   = fmtCRC(impuesto);
+    document.getElementById('caj-total').textContent = fmtCRC(total);
+    // Only swap visibility once data is ready
+    document.getElementById('caj-lista').style.display    = 'none';
+    document.getElementById('caj-checkout').style.display = 'block';
+    document.getElementById('caj-recibo').style.display   = 'none';
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function cerrarCheckout() {
+  document.getElementById('caj-checkout').style.display = 'none';
+  document.getElementById('caj-lista').style.display = 'block';
+}
+
+async function cobrar() {
+  const { subtotal, impuesto, total } = _cajResumen;
+  const metodo = document.getElementById('caj-metodo').value;
+  const ref    = document.getElementById('caj-ref').value.trim() || null;
+  const today  = new Date().toISOString().split('T')[0];
+  const facId  = await nextId('/api/facturas', 'F', 3, 'ID_FACTURA');
+  try {
+    await apiFetch('/api/facturas', { method:'POST', body: JSON.stringify({
+      id_factura: facId, id_orden: _cajOrdenId,
+      fecha_emision: today, subtotal, impuesto, total, estado: 'PENDIENTE'
+    })});
+    const pagId = await nextId('/api/pagos', 'PAG', 3, 'ID_PAGO');
+    await apiFetch('/api/pagos', { method:'POST', body: JSON.stringify({
+      id_pago: pagId, id_factura: facId,
+      fecha_pago: today, monto: total, metodo_pago: metodo, referencia: ref
+    })});
+    document.getElementById('caj-checkout').style.display = 'none';
+    document.getElementById('caj-recibo').style.display = 'block';
+    document.getElementById('caj-recibo-titulo').textContent = `Cobro exitoso! ${fmtCRC(total)}`;
+    document.getElementById('caj-recibo-det').textContent = `Factura ${facId} | Pago ${pagId} | Metodo: ${metodo}`;
+    toast('Pago registrado correctamente', 'success');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+function resetCajero() {
+  _cajOrdenId = null; _cajResumen = null;
+  document.getElementById('caj-recibo').style.display = 'none';
+  document.getElementById('caj-lista').style.display = 'block';
+  loadCajOrdenes();
+}
+
+// INIT
+(async () => {
+  await loadCatalogs();
+  initTabs();
+  recepGoto(1);
+})();
+</script>
+
+<style>
+.at-panel {}
+.at-step { padding:8px 18px;background:#f3f4f6;font-size:12px;font-weight:600;color:#6b7280;border-right:2px solid #e5e7eb;cursor:default;transition:background .15s }
+.at-step:first-child { border-radius:8px 0 0 8px }
+.at-step:last-child  { border-radius:0 8px 8px 0;border-right:none }
+.at-step.active { background:#f97316;color:#fff }
+.at-step.done   { background:#d1fae5;color:#065f46 }
+.at-sel-card { display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:13px;font-weight:600;color:#065f46 }
+.at-result-row { padding:9px 14px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:6px;cursor:pointer;font-size:13px;transition:background .12s }
+.at-result-row:hover { background:#f7f8fa }
+.at-queue-card { padding:12px 16px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:8px;cursor:pointer;transition:border-color .15s,box-shadow .15s }
+.at-queue-card:hover { border-color:#f97316;box-shadow:0 2px 8px rgba(249,115,22,.12) }
+.at-queue-card.active-order { border-left:3px solid #3b82f6 }
+</style>
+</body>
+</html>
