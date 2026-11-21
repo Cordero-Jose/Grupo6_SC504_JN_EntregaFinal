@@ -65,9 +65,11 @@ async function initPool() {
         configDir     : WALLET_DIR,
         walletLocation: WALLET_DIR,
         walletPassword: process.env.WALLET_PASSWORD,
-        poolMin       : 2,
+        poolMin       : 0,
         poolMax       : 10,
-        poolIncrement : 1
+        poolIncrement : 1,
+        poolTimeout   : 60,
+        queueTimeout  : 30000
     });
     console.log('✅  Oracle connection pool created');
 }
