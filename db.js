@@ -3,7 +3,7 @@ require('dotenv').config();
 const oracledb = require('oracledb');
 const path     = require('path');
 
-const WALLET_DIR = path.join(__dirname, 'wallet');
+const WALLET_DIR = process.env.WALLET_DIR || path.join(__dirname, 'wallet');
 
 async function initPool() {
     await oracledb.createPool({
