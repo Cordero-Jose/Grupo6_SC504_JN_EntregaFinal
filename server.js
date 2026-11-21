@@ -14,6 +14,9 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Health check endpoint for cloud platforms
+app.get('/healthz', (req, res) => res.status(200).send('OK'));
+
 // ── Routes ───────────────────────────────────────────────
 app.use('/api/clientes',   require('./routes/clientes'));
 app.use('/api/vehiculos',  require('./routes/vehiculos'));
